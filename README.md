@@ -2,9 +2,7 @@
 
 Interactive 3D viewer of the [IEA 22 MW Reference Wind Turbine](https://github.com/IEAWindTask37/IEA-22-280-RWT) blade, showing its **real composite ply layup** — actual chord, twist, prebend, blended airfoils, and the 12 shell layers + 3 shear webs straight from the WindIO YAML.
 
-**[▶ Live demo](https://brajjoub.github.io/iea22mw-blade-viewer/)** · single self-contained `index.html`, no build step.
-
-> Update the demo link above to match your GitHub Pages URL (`https://<user>.github.io/<repo>/`).
+**[▶ Live demo](https://basemrajjoub.github.io/iea22mw-blade-viewer/)** · single self-contained `index.html`, no build step.
 
 ## Run it
 
