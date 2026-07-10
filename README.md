@@ -4,6 +4,8 @@ Interactive 3D viewer of the [IEA 22 MW Reference Wind Turbine](https://github.c
 
 **[▶ Live demo](https://basemrajjoub.github.io/iea22mw-blade-viewer/)** · single self-contained `index.html`, no build step.
 
+![IEA 22MW blade clipped at z=0.30, showing spar caps, shear webs, TE filler and the full composite ply stack](image.png)
+
 ## Run it
 
 - **Online:** open the live demo link.
