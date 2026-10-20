@@ -20,11 +20,13 @@ https://github.com/user-attachments/assets/88ad2781-a8b6-405f-81f3-a04ad9e11a13
 
 ## Controls
 
-- **Mouse / touch** — orbit, zoom, pan.
+- **Navigation** — left-drag orbits about the exact surface point under the cursor, right/shift-drag pans (the grabbed point stays under the cursor), wheel zooms toward the cursor. Touch: one finger orbits, two fingers pan and pinch-zoom. A small gizmo marks the pivot while you move.
 - **Layer checkboxes** — show/hide each shell ply, shear web, reference curve, or the pitch axis.
 - **Cut slider** — clip the blade along the span and fill the revealed cross-section live.
 - **Exaggeration slider** — scale ply thickness 1×–10× (real plies are thin relative to the blade).
 - **Wireframe** — overlay the mesh.
+- **Rotor & pitch** — rotor speed and blade pitch sliders (pitch applies to both the detailed blade and the full turbine).
+- **Wind & inflow** — leading-edge velocity triangles (axial U(1−a), rotational Ωr, relative W) at five span stations, with wind speed and axial-induction sliders and a tip readout of inflow angle and angle of attack.
 - The side panel lists the exact, unexaggerated ply stack (thickness in mm + fiber angle) at the current cut station.
 
 ## How it works

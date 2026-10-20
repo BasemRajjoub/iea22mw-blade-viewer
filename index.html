@@ -31,6 +31,27 @@
   hr { border:none; border-top:1px solid rgba(255,255,255,0.08); margin:10px 0; }
   #statLine { font-size:11px; color:#8891a0; margin-top:8px; }
 
+  /* collapsible panel sections + generic slider controls */
+  details.sec { border-top:1px solid rgba(255,255,255,0.08); }
+  details.sec > summary {
+    list-style:none; cursor:pointer; user-select:none; display:flex; align-items:center;
+    justify-content:space-between; padding:9px 0; font-size:11px; font-weight:600;
+    color:#9aa3af; text-transform:uppercase; letter-spacing:0.05em;
+  }
+  details.sec > summary::-webkit-details-marker { display:none; }
+  details.sec > summary::after { content:"\25B8"; font-size:12px; transition:transform .15s ease; }
+  details.sec[open] > summary::after { transform:rotate(90deg); }
+  details.sec > summary:hover { color:#eaeaea; }
+  .sec-body { padding:0 0 10px; }
+  .ctl { margin:10px 0; }
+  .ctl-head { display:flex; justify-content:space-between; font-size:12px; color:#c7ccd4; margin-bottom:2px; }
+  .ctl-head output { color:#fff; font-variant-numeric:tabular-nums; }
+  .ctl input[type=range] { width:100%; }
+  .readout { font-size:11px; font-family:ui-monospace, monospace; color:#9aa3af; line-height:1.5; margin-top:6px; }
+  .legend { display:flex; flex-wrap:wrap; gap:4px 12px; font-size:11.5px; color:#c7ccd4; margin:6px 0 2px; }
+  .legend span { display:inline-flex; align-items:center; gap:5px; }
+  .legend i { width:14px; height:3px; border-radius:2px; display:inline-block; }
+
   /* panel collapse toggle */
   #panelToggle {
     position:fixed; top:16px; left:16px; z-index:11;
@@ -121,31 +142,80 @@
     <button id="panelClose" title="Hide panel" aria-label="Hide panel"
       style="background:none; border:none; color:#9aa3af; font-size:16px; cursor:pointer; padding:0 2px; line-height:1;">✕</button>
   </h1>
-  <div class="sub">Real chord/twist/prebend + blended airfoils + 12 actual composite shell layers from the WindIO YAML. Orbit/zoom with mouse. Checkboxes show/hide a layer. Slider clips the blade and fills the revealed cross-section live.</div>
-  <div id="plyList"></div>
-  <hr/>
-  <div style="font-size:11px; color:#9aa3af; margin:0 0 2px; text-transform:uppercase; letter-spacing:0.03em;">Scale comparison</div>
-  <label class="row"><input id="carToggle" type="checkbox" /> <span>Car (4.5 m) next to blade</span></label>
-  <label class="row"><input id="humanToggle" type="checkbox" /> <span>Human (1.75 m) next to root</span></label>
-  <label class="row"><input id="fieldToggle" type="checkbox" /> <span>Soccer field (105 × 68 m)</span></label>
-  <label class="row"><input id="turbineToggle" type="checkbox" /> <span>Full turbine (3 blades, hub, tower)</span></label>
-  <label class="row"><input id="spinToggle" type="checkbox" checked /> <span>Rotate at rated speed (7.06 rpm)</span></label>
-  <label class="row"><input id="eiffelToggle" type="checkbox" /> <span>Eiffel Tower (330 m)</span></label>
-  <div id="refStatus" style="font-size:11px; color:#8891a0;"></div>
-  <hr/>
-  <label class="row"><input id="wireToggle" type="checkbox" /> <span>Show mesh (wireframe)</span></label>
-  <hr/>
-  <div id="sliderRow">
-    <input id="cutSlider" type="range" min="0.02" max="1" step="0.001" value="1" />
-    <div id="cutLabel"><span>root</span><span id="cutValue">z = 1.00</span><span>tip</span></div>
-  </div>
-  <div id="stackReadout" style="font-size:11px; font-family: ui-monospace, monospace; color:#c7ccd4; margin-top:8px; line-height:1.5;"></div>
-  <div id="rthickCheck" style="font-size:11px; font-family: ui-monospace, monospace; color:#9aa3af; margin-top:6px;"></div>
-  <hr/>
-  <div id="sliderRow">
-    <input id="exagSlider" type="range" min="1" max="10" step="0.5" value="1" />
-    <div id="cutLabel"><span>1x (true scale)</span><span id="exagValue">1.0x</span><span>10x</span></div>
-  </div>
+  <div class="sub">Real chord/twist/prebend + blended airfoils + 12 actual composite shell layers from the WindIO YAML.<br/>Left-drag orbits about the point under the cursor · right/shift-drag pans · wheel zooms to the cursor.</div>
+
+  <details class="sec" data-sec="layers" open>
+    <summary>Layers</summary>
+    <div class="sec-body">
+      <div id="plyList"></div>
+      <label class="row"><input id="wireToggle" type="checkbox" /> <span>Show mesh (wireframe)</span></label>
+    </div>
+  </details>
+
+  <details class="sec" data-sec="cut" open>
+    <summary>Section cut &amp; thickness</summary>
+    <div class="sec-body">
+      <div id="sliderRow">
+        <input id="cutSlider" type="range" min="0.02" max="1" step="0.001" value="1" />
+        <div id="cutLabel"><span>root</span><span id="cutValue">z = 1.00</span><span>tip</span></div>
+      </div>
+      <div id="stackReadout" style="font-size:11px; font-family: ui-monospace, monospace; color:#c7ccd4; margin-top:8px; line-height:1.5;"></div>
+      <div id="rthickCheck" style="font-size:11px; font-family: ui-monospace, monospace; color:#9aa3af; margin-top:6px;"></div>
+      <div id="sliderRow">
+        <input id="exagSlider" type="range" min="1" max="10" step="0.5" value="1" />
+        <div id="cutLabel"><span>1x (true scale)</span><span id="exagValue">1.0x</span><span>10x</span></div>
+      </div>
+    </div>
+  </details>
+
+  <details class="sec" data-sec="operation" open>
+    <summary>Rotor &amp; pitch</summary>
+    <div class="sec-body">
+      <label class="row"><input id="turbineToggle" type="checkbox" /> <span>Full turbine (3 blades, hub, tower)</span></label>
+      <label class="row"><input id="spinToggle" type="checkbox" checked /> <span>Spin rotor (real time)</span></label>
+      <div class="ctl">
+        <div class="ctl-head"><span>Rotor speed</span><output id="rpmValue"></output></div>
+        <input id="rpmSlider" type="range" min="0" max="9" step="0.01" value="7.06" />
+      </div>
+      <div class="ctl">
+        <div class="ctl-head"><span>Blade pitch (both views)</span><output id="pitchValue"></output></div>
+        <input id="pitchSlider" type="range" min="-5" max="90" step="0.5" value="0" />
+      </div>
+      <div id="opReadout" class="readout"></div>
+    </div>
+  </details>
+
+  <details class="sec" data-sec="wind">
+    <summary>Wind &amp; inflow</summary>
+    <div class="sec-body">
+      <label class="row"><input id="windToggle" type="checkbox" /> <span>Inflow velocity triangles at leading edge</span></label>
+      <div class="legend">
+        <span><i style="background:#4fc3f7"></i>axial U(1&minus;a)</span>
+        <span><i style="background:#ffb74d"></i>rotational &Omega;r</span>
+        <span><i style="background:#ffffff"></i>relative W</span>
+      </div>
+      <div class="ctl">
+        <div class="ctl-head"><span>Wind speed</span><output id="windValue"></output></div>
+        <input id="windSlider" type="range" min="3" max="25" step="0.1" value="11" />
+      </div>
+      <div class="ctl">
+        <div class="ctl-head"><span>Axial induction a</span><output id="inducValue"></output></div>
+        <input id="inducSlider" type="range" min="0" max="0.4" step="0.01" value="0" />
+      </div>
+      <div id="windReadout" class="readout"></div>
+    </div>
+  </details>
+
+  <details class="sec" data-sec="scale">
+    <summary>Scale comparison</summary>
+    <div class="sec-body">
+      <label class="row"><input id="carToggle" type="checkbox" /> <span>Car (4.5 m) next to blade</span></label>
+      <label class="row"><input id="humanToggle" type="checkbox" /> <span>Human (1.75 m) next to root</span></label>
+      <label class="row"><input id="fieldToggle" type="checkbox" /> <span>Soccer field (105 &times; 68 m)</span></label>
+      <label class="row"><input id="eiffelToggle" type="checkbox" /> <span>Eiffel Tower (330 m)</span></label>
+      <div id="refStatus" style="font-size:11px; color:#8891a0;"></div>
+    </div>
+  </details>
   <div id="statLine"></div>
 </div>
 <div id="fps"></div>
@@ -196,8 +266,6 @@
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"
         onerror="window.__cdnFail=true"></script>
-<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"
-        onerror="window.__cdnFail=true"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/DRACOLoader.js"></script>
 <script>
@@ -206,7 +274,7 @@
 
 // --- CDN guard: if three.js didn't load (offline / CDN outage), fail loud
 // with a readable message instead of a silent blank page. ---
-if (window.__cdnFail || typeof THREE === "undefined" || !THREE.OrbitControls) {
+if (window.__cdnFail || typeof THREE === "undefined") {
   const ov = document.getElementById("overlay");
   ov.classList.remove("hidden");
   ov.innerHTML =
@@ -694,10 +762,8 @@ renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.localClippingEnabled = true;
 container.appendChild(renderer.domElement);
 
-const controls = new THREE.OrbitControls(camera, renderer.domElement);
-controls.target.set(BLADE_LENGTH*0.35, 0, -1.5);
-controls.enableDamping = true;
-controls.update();
+const INITIAL_TARGET = new THREE.Vector3(BLADE_LENGTH*0.35, 0, -1.5);
+camera.lookAt(INITIAL_TARGET);
 
 scene.add(new THREE.AmbientLight(0xffffff, 0.55));
 const dir1 = new THREE.DirectionalLight(0xffffff, 0.9); dir1.position.set(100, 120, 60); scene.add(dir1);
@@ -706,6 +772,11 @@ const dir2 = new THREE.DirectionalLight(0xffffff, 0.35); dir2.position.set(-60,-
 const grid = new THREE.GridHelper(200, 40, 0x2a2f3a, 0x1c2028);
 grid.position.set(BLADE_LENGTH/2, -4, 0);
 scene.add(grid);
+
+// everything that belongs to the detailed blade hangs off this rig so the
+// pitch slider can turn it about the pitch axis (world X through the root)
+const bladeRig = new THREE.Group();
+scene.add(bladeRig);
 
 // =====================================================================
 // build one group per layer
@@ -721,6 +792,35 @@ const capWireframes = {};
 const plyWireframes = {};
 const wireMat = new THREE.LineBasicMaterial({ color: 0x0a0a0a, transparent: true, opacity: 0.3 });
 
+// LAYER_SEP alone can't keep a 0.5 mm gelcoat in front of the ply beneath
+// it at a distance or at grazing angles, and logarithmic depth disables
+// polygonOffset -- so do the same thing in the fragment shader: push each
+// layer back by (constant + one pixel's depth slope) per layer step. Seen
+// from outside, layers further in are pushed back; seen from inside (cut
+// views), layers further out are. Only ever push away from the camera:
+// pulling a surface forward makes the far wall pop through near the
+// silhouette. Outer-surface meshes face outward, inner ones inward.
+const LAYER_DEPTH_BIAS = 2.5e-6;   // log-depth units per layer step, ~2e-5 of the view distance
+function withLayerDepthBias(mat, layerIdx, frontIsOutward) {
+  const stepsFromOutside = layerIdx, stepsFromInside = LAYERS.length - 1 - layerIdx;
+  const front = { value: frontIsOutward ? stepsFromOutside : stepsFromInside };
+  const back = { value: frontIsOutward ? stepsFromInside : stepsFromOutside };
+  mat.onBeforeCompile = (shader) => {
+    shader.uniforms.uStepsFront = front;
+    shader.uniforms.uStepsBack = back;
+    shader.fragmentShader = shader.fragmentShader
+      .replace("void main() {", "uniform float uStepsFront, uStepsBack;\nvoid main() {")
+      .replace("#include <logdepthbuf_fragment>", [
+        "#include <logdepthbuf_fragment>",
+        "#if defined( USE_LOGDEPTHBUF ) && defined( USE_LOGDEPTHBUF_EXT )",
+        "  float logZ = log2( vFragDepth ) * logDepthBufFC * 0.5;",
+        "  float steps = gl_FrontFacing ? uStepsFront : uStepsBack;",
+        `  gl_FragDepthEXT = logZ + steps * ( ${LAYER_DEPTH_BIAS.toExponential()} + fwidth( logZ ) );`,
+        "#endif"].join("\n"));
+  };
+  return mat;
+}
+
 LAYERS.forEach((layer, idx) => {
   const color = MATERIAL_COLORS[layer.material] || 0x999999;
   const mat = new THREE.MeshStandardMaterial({
@@ -729,8 +829,8 @@ LAYERS.forEach((layer, idx) => {
   });
 
   const { outerGeom, innerGeom } = buildPlyShell(idx);
-  const outerMesh = new THREE.Mesh(outerGeom, mat);
-  const innerMesh = new THREE.Mesh(innerGeom, mat);
+  const outerMesh = new THREE.Mesh(outerGeom, withLayerDepthBias(mat, idx, true));
+  const innerMesh = new THREE.Mesh(innerGeom, withLayerDepthBias(mat.clone(), idx, false));
 
   const outerWireMat = wireMat.clone(); outerWireMat.clippingPlanes = [clipPlane];
   const innerWireMat = wireMat.clone(); innerWireMat.clippingPlanes = [clipPlane];
@@ -766,7 +866,7 @@ LAYERS.forEach((layer, idx) => {
 
   const group = new THREE.Group();
   group.add(outerMesh, innerMesh, capMesh, outerWire, innerWire, capWire, rootCapMesh, tipCapMesh);
-  scene.add(group);
+  bladeRig.add(group);
   plyGroups[layer.name] = group;
 });
 
@@ -811,7 +911,7 @@ WEBS.forEach((webLayer) => {
 
   const group = new THREE.Group();
   group.add(outerMesh, innerMesh, capMesh, outerWire, innerWire, capWire, rootCapMesh, tipCapMesh);
-  scene.add(group);
+  bladeRig.add(group);
   plyGroups[webLayer.name] = group;
 });
 
@@ -869,7 +969,7 @@ Object.keys(ANCHORS).forEach(name => {
     group.add(line);
   }
   group.visible = false;
-  scene.add(group);
+  bladeRig.add(group);
   anchorLines[name] = group;
 });
 
@@ -899,7 +999,7 @@ const refAxisGroup = new THREE.Group();
 const refAxisLine = new THREE.Line(buildRefAxisCurve(), new THREE.LineBasicMaterial({ color: 0xff6b6b }));
 refAxisGroup.add(refAxisLine);
 refAxisGroup.visible = false;
-scene.add(refAxisGroup);
+bladeRig.add(refAxisGroup);
 {
   const row = document.createElement("label");
   row.className = "row";
@@ -933,7 +1033,7 @@ const ATTACH_COLORS = { web0: 0x00e5ff, web1: 0x00ff88, web2: 0xffee00 };
     group.add(line);
   });
   group.visible = false;
-  scene.add(group);
+  bladeRig.add(group);
   attachLines[webName] = group;
 
   const row = document.createElement("label");
@@ -1177,7 +1277,7 @@ document.getElementById("fieldToggle").addEventListener("change", (e) => { field
 
 // full turbine: 3 plain outer-surface blades on a hub + tower, for size only.
 // Rotor 283 m, hub height 170 m (IEA 22 MW RWT). Tilt/precone ignored.
-const rotorArms = [];
+const rotorArms = [], turbinePitchGroups = [], turbineWindGroups = [];
 const RATED_RPM = 7.06;   // IEA 22 MW RWT rated rotor speed
 const HUB_RADIUS = 3.7, HUB_HEIGHT = 170, OVERHANG = 12;
 const turbineGroup = (() => {
@@ -1204,9 +1304,13 @@ const turbineGroup = (() => {
   for (let i = 0; i < 3; i++) {
     const arm = new THREE.Group();
     arm.rotation.z = Math.PI/2 + i * 2*Math.PI/3;
-    const blade = new THREE.Mesh(bg, bladeMat);
-    blade.position.x = HUB_RADIUS;
-    arm.add(blade); hub.add(arm); rotorArms.push(arm);
+    const pitchGrp = new THREE.Group();   // pitch bearing: turns the blade about its span axis
+    pitchGrp.position.x = HUB_RADIUS;
+    pitchGrp.add(new THREE.Mesh(bg, bladeMat));
+    const windGrp = new THREE.Group();    // inflow arrows: blade frame, but not pitched
+    windGrp.position.x = HUB_RADIUS;
+    arm.add(pitchGrp, windGrp); hub.add(arm); rotorArms.push(arm);
+    turbinePitchGroups.push(pitchGrp); turbineWindGroups.push(windGrp);
   }
   const spinner = new THREE.Mesh(new THREE.SphereGeometry(HUB_RADIUS, 32, 16), towerMat);
   spinner.scale.z = 1.5; spinner.position.z = -1.5;
@@ -1229,9 +1333,8 @@ const turbineGroup = (() => {
 document.getElementById("turbineToggle").addEventListener("change", (e) => {
   turbineGroup.visible = e.target.checked;
   if (e.target.checked) {   // frame the whole rotor
-    controls.target.set(BLADE_LENGTH * 0.5, GROUND_Y + HUB_HEIGHT * 0.5, -200);
-    camera.position.set(BLADE_LENGTH * 0.5 + 250, GROUND_Y + 120, 330);
-    controls.update();
+    frameView(new THREE.Vector3(BLADE_LENGTH * 0.5, GROUND_Y + HUB_HEIGHT * 0.5, -200),
+              new THREE.Vector3(BLADE_LENGTH * 0.5 + 250, GROUND_Y + 120, 330));
   }
 });
 
@@ -1279,63 +1382,299 @@ const eiffelGroup = (() => {
 document.getElementById("eiffelToggle").addEventListener("change", (e) => {
   eiffelGroup.visible = e.target.checked;
   if (e.target.checked) {
-    controls.target.set(eiffelGroup.position.x, GROUND_Y + 150, -200);
-    camera.position.set(eiffelGroup.position.x + 250, GROUND_Y + 120, 330);
-    controls.update();
+    frameView(new THREE.Vector3(eiffelGroup.position.x, GROUND_Y + 150, -200),
+              new THREE.Vector3(eiffelGroup.position.x + 250, GROUND_Y + 120, 330));
   }
 });
 
 // =====================================================================
-// cursor-centred navigation: orbit pivots on the surface point under the
-// cursor at pointer-down, wheel zooms toward the cursor, pan is free-form
-// (screen-space) with right-drag / shift-drag.
+// rotor operating point: speed, pitch, and inflow velocity triangles at
+// the leading edge (blade frame, BEM-style, no tip loss / swirl):
+//   axial      U(1-a)  along +Z   (upwind is -Z)
+//   rotational Ωr      along +Y   (the blade itself moves LE-first, along -Y)
+//   relative   W       their sum, arriving at the leading edge
 // =====================================================================
-controls.screenSpacePanning = true;
-controls.panSpeed = 1.2;
-controls.minDistance = 0.3;
-controls.maxDistance = 1500;
+const WIND_STATIONS = [0.3, 0.5, 0.7, 0.9, 0.98];   // span fractions
+const ARROW_M_PER_MPS = 0.25;                        // arrow length per m/s
+const WIND_COLORS = { axial: 0x4fc3f7, rot: 0xffb74d, rel: 0xffffff };
+const ROTOR_RADIUS = HUB_RADIUS + BLADE_LENGTH;
+
+const leStations = WIND_STATIONS.map(z => {
+  const sec = sectionCurve(z), { x } = blendedShape(z);
+  let ile = 0;
+  for (let i = 1; i < N_S; i++) if (x[i] < x[ile]) ile = i;   // LE = min chordwise coordinate
+  return { X: sec.X, Y: sec.Y[ile], Z: sec.Z[ile], twist: twistDegAt(z) };
+});
+
+const opState = { rpm: RATED_RPM, pitchDeg: 0, wind: 11, induction: 0 };
+
+const windGroupMain = new THREE.Group();   // not on bladeRig: wind doesn't pitch with the blade
+scene.add(windGroupMain);
+[windGroupMain, ...turbineWindGroups].forEach(g => { g.userData.noPick = true; g.visible = false; });
+
+const _axialDir = new THREE.Vector3(0, 0, 1), _rotDir = new THREE.Vector3(0, 1, 0);
+function fillWindArrows(group) {
+  // ArrowHelper shares its geometries across instances -- only materials are per-arrow
+  group.children.slice().forEach(c => { group.remove(c); c.line.material.dispose(); c.cone.material.dispose(); });
+  const omega = opState.rpm * 2*Math.PI / 60, ua = opState.wind * (1 - opState.induction);
+  const p = opState.pitchDeg * Math.PI/180, cp = Math.cos(p), sp = Math.sin(p);
+  leStations.forEach(st => {
+    const ut = omega * (HUB_RADIUS + st.X);
+    const le = new THREE.Vector3(st.X, st.Y*cp - st.Z*sp, st.Y*sp + st.Z*cp); // LE after pitching about X
+    const add = (dir, speed, color) => {
+      const len = speed * ARROW_M_PER_MPS;
+      if (len < 0.05) return;
+      const head = Math.min(0.15*len, 1.5);
+      group.add(new THREE.ArrowHelper(dir, le.clone().addScaledVector(dir, -len), len, color, head, head*0.5));
+    };
+    add(_axialDir, ua, WIND_COLORS.axial);
+    add(_rotDir, ut, WIND_COLORS.rot);
+    add(new THREE.Vector3(0, ut, ua).normalize(), Math.hypot(ut, ua), WIND_COLORS.rel);
+  });
+}
+
+const rpmSlider = document.getElementById("rpmSlider");
+const pitchSlider = document.getElementById("pitchSlider");
+const windSlider = document.getElementById("windSlider");
+const inducSlider = document.getElementById("inducSlider");
+const windToggle = document.getElementById("windToggle");
+
+function updateOperatingPoint() {
+  opState.rpm = parseFloat(rpmSlider.value);
+  opState.pitchDeg = parseFloat(pitchSlider.value);
+  opState.wind = parseFloat(windSlider.value);
+  opState.induction = parseFloat(inducSlider.value);
+  const omega = opState.rpm * 2*Math.PI / 60;
+
+  document.getElementById("rpmValue").textContent =
+    opState.rpm.toFixed(2) + " rpm" + (Math.abs(opState.rpm - RATED_RPM) < 0.005 ? " (rated)" : "");
+  document.getElementById("pitchValue").textContent = opState.pitchDeg.toFixed(1) + "°";
+  document.getElementById("windValue").textContent = opState.wind.toFixed(1) + " m/s";
+  document.getElementById("inducValue").textContent = opState.induction.toFixed(2);
+  document.getElementById("opReadout").textContent =
+    `tip speed ${(omega*ROTOR_RADIUS).toFixed(1)} m/s · TSR ${(omega*ROTOR_RADIUS/opState.wind).toFixed(2)}`;
+
+  // velocity triangle at the outermost station
+  const st = leStations[leStations.length-1], r = HUB_RADIUS + st.X;
+  const ua = opState.wind * (1 - opState.induction), ut = omega * r;
+  const phi = Math.atan2(ua, ut) * 180/Math.PI, beta = st.twist + opState.pitchDeg;
+  document.getElementById("windReadout").innerHTML =
+    `at r = ${r.toFixed(1)} m (r/R ${(r/ROTOR_RADIUS).toFixed(2)})<br/>` +
+    `W ${Math.hypot(ua, ut).toFixed(1)} m/s · inflow φ ${phi.toFixed(1)}°<br/>` +
+    `twist+pitch ${beta.toFixed(1)}° → AoA ≈ ${(phi - beta).toFixed(1)}°`;
+
+  // positive pitch turns the LE upwind (-Z), i.e. toward feather -- same sense as twist
+  const p = opState.pitchDeg * Math.PI/180;
+  bladeRig.rotation.x = p;
+  turbinePitchGroups.forEach(g => { g.rotation.x = p; });
+
+  [windGroupMain, ...turbineWindGroups].forEach(g => {
+    g.visible = windToggle.checked;
+    if (windToggle.checked) fillWindArrows(g);
+  });
+}
+[rpmSlider, pitchSlider, windSlider, inducSlider].forEach(el => el.addEventListener("input", updateOperatingPoint));
+windToggle.addEventListener("change", updateOperatingPoint);
+updateOperatingPoint();
+
+// =====================================================================
+// navigation: left-drag orbits about the exact surface point under the
+// cursor, right/middle/shift-drag grab-pans (the grabbed point stays glued
+// to the cursor), wheel / pinch zooms toward the cursor. The camera is
+// never re-aimed at a new pivot, so nothing jumps when a drag starts.
+// =====================================================================
+const MIN_DIST = 0.3, MAX_DIST = 1500;
+const ROT_SPEED = 0.005;            // rad per pixel
+const GIZMO_PX = 46;                // on-screen gizmo size
+const WORLD_UP = new THREE.Vector3(0, 1, 0);
 const _ray = new THREE.Raycaster();
 const _ndc = new THREE.Vector2();
 const _groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), -GROUND_Y);
+const _v1 = new THREE.Vector3(), _v2 = new THREE.Vector3();
+const _q1 = new THREE.Quaternion(), _q2 = new THREE.Quaternion();
+const navEl = renderer.domElement;
+const navPivot = new THREE.Vector3().copy(INITIAL_TARGET);
+let navDepth = camera.position.distanceTo(INITIAL_TARGET); // fallback depth over empty space
+let navMode = null;      // "orbit" | "pan" | null
+let gizmoMode = "orbit", gizmoHold = 0;
+
+function frameView(target, pos) {
+  camera.position.copy(pos);
+  camera.lookAt(target);
+  navPivot.copy(target);
+  navDepth = pos.distanceTo(target);
+}
+
+function depthOf(p) {   // distance of p along the view direction
+  return _v1.copy(p).sub(camera.position).dot(_v2.set(0, 0, -1).applyQuaternion(camera.quaternion));
+}
+
 function pickPoint(clientX, clientY) {
-  const r = renderer.domElement.getBoundingClientRect();
+  const r = navEl.getBoundingClientRect();
   _ndc.set(((clientX - r.left) / r.width) * 2 - 1, -((clientY - r.top) / r.height) * 2 + 1);
+  camera.updateMatrixWorld();      // the camera may have moved since the last render
   _ray.setFromCamera(_ndc, camera);
   const meshes = [];
   (function walk(o) {
-    if (!o.visible) return;
+    if (!o.visible || o.userData.noPick) return;
     if (o.isMesh) meshes.push(o);
     o.children.forEach(walk);
   })(scene);
-  const hit = _ray.intersectObjects(meshes, false)[0];
-  if (hit) return hit.point.clone();
+  for (const h of _ray.intersectObjects(meshes, false)) {
+    // the raycaster ignores clipping planes -- skip what the cut slider hides
+    const planes = h.object.material.clippingPlanes;
+    if (planes && planes.some(pl => pl.distanceToPoint(h.point) < 0)) continue;
+    return h.point.clone();
+  }
   const p = new THREE.Vector3();
-  if (_ray.ray.intersectPlane(_groundPlane, p) && p.distanceTo(camera.position) < 1500) return p;
-  return null;
+  if (_ray.ray.intersectPlane(_groundPlane, p) && p.distanceTo(camera.position) < MAX_DIST) return p;
+  return _ray.ray.at(navDepth, p);  // empty space: stay at the last working depth
 }
-container.addEventListener("pointerdown", (e) => {
-  if (e.pointerType === "touch" && !e.isPrimary) return;
-  const p = pickPoint(e.clientX, e.clientY);
-  if (p) controls.target.copy(p);
-}, true);
+
+function navOrbit(dx, dy) {
+  const right = _v1.set(1, 0, 0).applyQuaternion(camera.quaternion);
+  _q1.setFromAxisAngle(right, -dy * ROT_SPEED);
+  // stop pitching just short of straight up/down so the view never flips
+  const fwd = _v2.set(0, 0, -1).applyQuaternion(camera.quaternion).applyQuaternion(_q1);
+  if (Math.abs(fwd.y) > 0.995) _q1.identity();
+  _q2.setFromAxisAngle(WORLD_UP, -dx * ROT_SPEED);
+  _q1.premultiply(_q2);            // yaw about world up after pitch about camera right: no roll
+  camera.position.sub(navPivot).applyQuaternion(_q1).add(navPivot);
+  camera.quaternion.premultiply(_q1).normalize();
+}
+
+function navPan(dx, dy) {
+  // world size of one pixel at the pivot's depth -> the pivot tracks the cursor exactly
+  const wpp = 2 * Math.max(depthOf(navPivot), camera.near) * Math.tan(camera.fov * Math.PI/360) / navEl.clientHeight;
+  camera.position
+    .addScaledVector(_v1.set(1, 0, 0).applyQuaternion(camera.quaternion), -dx * wpp)
+    .addScaledVector(_v1.set(0, 1, 0).applyQuaternion(camera.quaternion), dy * wpp);
+}
+
+function navZoomAt(p, k) {
+  const d = camera.position.distanceTo(p) * k;
+  if (d < MIN_DIST || d > MAX_DIST) return;
+  camera.position.sub(p).multiplyScalar(k).add(p);   // scaling about p keeps p under the cursor
+  navDepth = Math.max(depthOf(p), MIN_DIST);
+}
+
+const _ptrs = new Map();
+let _last = null, _pinch = 0;
+const _mid = pts => ({ x: (pts[0].x + pts[1].x) / 2, y: (pts[0].y + pts[1].y) / 2 });
+const _span = pts => Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y) || 1;
+
+function beginGesture() {
+  const pts = [..._ptrs.values()];
+  if (pts.length === 1) {
+    navMode = (pts[0].button !== 0 || pts[0].mod) ? "pan" : "orbit";
+    _last = { x: pts[0].x, y: pts[0].y };
+  } else {
+    navMode = "pan";                  // two fingers: pan with the midpoint + pinch zoom
+    _last = _mid(pts); _pinch = _span(pts);
+  }
+  navPivot.copy(pickPoint(_last.x, _last.y));
+  navDepth = Math.max(depthOf(navPivot), MIN_DIST);
+  gizmoMode = navMode;
+}
+
+navEl.style.touchAction = "none";
+navEl.addEventListener("contextmenu", (e) => e.preventDefault());
+navEl.addEventListener("pointerdown", (e) => {
+  if (_ptrs.size >= 2) return;
+  navEl.setPointerCapture(e.pointerId);
+  _ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY, button: e.button, mod: e.shiftKey || e.ctrlKey || e.metaKey });
+  beginGesture();
+});
+navEl.addEventListener("pointermove", (e) => {
+  const ptr = _ptrs.get(e.pointerId);
+  if (!ptr) return;
+  ptr.x = e.clientX; ptr.y = e.clientY;
+  const pts = [..._ptrs.values()];
+  if (pts.length === 1) {
+    const dx = ptr.x - _last.x, dy = ptr.y - _last.y;
+    _last = { x: ptr.x, y: ptr.y };
+    if (navMode === "orbit") navOrbit(dx, dy); else navPan(dx, dy);
+  } else {
+    const m = _mid(pts), d = _span(pts);
+    navPan(m.x - _last.x, m.y - _last.y);
+    navZoomAt(navPivot, _pinch / d);
+    _last = m; _pinch = d;
+  }
+});
+function endPointer(e) {
+  if (!_ptrs.delete(e.pointerId)) return;
+  if (_ptrs.size) beginGesture(); else navMode = null;
+}
+navEl.addEventListener("pointerup", endPointer);
+navEl.addEventListener("pointercancel", endPointer);
+
 let _lastPick = { x: -1, y: -1, t: 0, p: null };
-container.addEventListener("wheel", (e) => {
-  e.preventDefault(); e.stopPropagation();
+navEl.addEventListener("wheel", (e) => {
+  e.preventDefault();
   const now = performance.now();
+  // re-pick only when the cursor moved or the wheel paused, so a fast scroll
+  // keeps zooming toward one fixed point instead of creeping across the surface
   if (!(_lastPick.p && Math.abs(e.clientX - _lastPick.x) < 3 && Math.abs(e.clientY - _lastPick.y) < 3 && now - _lastPick.t < 400)) {
     _lastPick = { x: e.clientX, y: e.clientY, t: now, p: pickPoint(e.clientX, e.clientY) };
   }
   _lastPick.t = now;
-  const p = _lastPick.p;
-  if (!p) return;
   const dy = e.deltaMode === 1 ? e.deltaY * 33 : e.deltaY;
-  let k = Math.exp(dy * 0.0012);
-  const dist = camera.position.distanceTo(controls.target) * k;
-  if (dist < controls.minDistance || dist > controls.maxDistance) return;
-  camera.position.sub(p).multiplyScalar(k).add(p);
-  controls.target.sub(p).multiplyScalar(k).add(p);
-  controls.update();
-}, { capture: true, passive: false });
+  navZoomAt(_lastPick.p, Math.exp(dy * 0.0012));
+  if (!navMode) { navPivot.copy(_lastPick.p); gizmoMode = "zoom"; gizmoHold = 0.6; }
+}, { passive: false });
+
+// pivot gizmo: world axes + orbit ring (orbit) or a screen-aligned cross
+// (pan), drawn on top, constant size on screen, fades out after release
+const gizmo = (() => {
+  const g = new THREE.Group();
+  g.userData.noPick = true;
+  g.visible = false;
+  const mats = [];
+  const mat = (props, base) => {
+    const m = props instanceof THREE.Material ? props : new THREE.LineBasicMaterial(props);
+    Object.assign(m, { transparent: true, depthTest: false, depthWrite: false });
+    m.userData.base = base; mats.push(m); return m;
+  };
+  const top = o => { o.renderOrder = 999; return o; };
+
+  const axesGeom = new THREE.BufferGeometry();
+  axesGeom.setAttribute("position", new THREE.Float32BufferAttribute([0,0,0, 1,0,0, 0,0,0, 0,1,0, 0,0,0, 0,0,1], 3));
+  axesGeom.setAttribute("color", new THREE.Float32BufferAttribute([1,.35,.35, 1,.35,.35, .4,1,.45, .4,1,.45, .35,.6,1, .35,.6,1], 3));
+  const axes = top(new THREE.LineSegments(axesGeom, mat({ vertexColors: true }, 1)));
+
+  const ringPts = [];
+  for (let i = 0; i < 64; i++) { const t = i / 64 * 2*Math.PI; ringPts.push(new THREE.Vector3(Math.cos(t)*0.75, 0, Math.sin(t)*0.75)); }
+  const ring = top(new THREE.LineLoop(new THREE.BufferGeometry().setFromPoints(ringPts), mat({ color: 0xffffff }, 0.45)));
+
+  const c = 0.15, crossGeom = new THREE.BufferGeometry();
+  crossGeom.setAttribute("position", new THREE.Float32BufferAttribute([
+    -1,0,0, 1,0,0,  0,-1,0, 0,1,0,
+    1,0,0, 1-c,c,0,  1,0,0, 1-c,-c,0,   -1,0,0, -1+c,c,0,  -1,0,0, -1+c,-c,0,
+    0,1,0, c,1-c,0,  0,1,0, -c,1-c,0,   0,-1,0, c,-1+c,0,  0,-1,0, -c,-1+c,0,
+  ], 3));
+  const cross = top(new THREE.LineSegments(crossGeom, mat({ color: 0xffffff }, 0.7)));
+
+  const dot = top(new THREE.Mesh(new THREE.SphereGeometry(0.07, 16, 8),
+    mat(new THREE.MeshBasicMaterial({ color: 0xffd54f }), 1)));
+
+  g.add(axes, ring, cross, dot);
+  scene.add(g);
+  return { g, ring, cross, mats };
+})();
+
+function updateGizmo(dt) {
+  if (navMode) gizmoHold = 0.5; else gizmoHold = Math.max(0, gizmoHold - dt);
+  const alpha = navMode ? 1 : Math.min(1, gizmoHold / 0.3);
+  gizmo.g.visible = alpha > 0;
+  if (!gizmo.g.visible) return;
+  gizmo.g.position.copy(navPivot);
+  const depth = Math.max(depthOf(navPivot), camera.near);
+  gizmo.g.scale.setScalar(depth * 2 * Math.tan(camera.fov * Math.PI/360) * GIZMO_PX / navEl.clientHeight);
+  gizmo.ring.visible = gizmoMode === "orbit";
+  gizmo.cross.visible = gizmoMode === "pan";
+  gizmo.cross.quaternion.copy(camera.quaternion);
+  gizmo.mats.forEach(m => { m.opacity = alpha * m.userData.base; });
+}
 
 // =====================================================================
 // render loop
@@ -1358,6 +1697,13 @@ document.getElementById("aboutBtn").addEventListener("click", () => aboutDialog.
 document.getElementById("aboutClose").addEventListener("click", () => aboutDialog.close());
 // click on the backdrop (outside the dialog box) closes it; Esc is handled natively
 aboutDialog.addEventListener("click", (e) => { if (e.target === aboutDialog) aboutDialog.close(); });
+// remember which panel sections are open (per viewer, best effort)
+document.querySelectorAll("details.sec").forEach(d => {
+  const key = "iea22-sec:" + d.dataset.sec;
+  try { const v = localStorage.getItem(key); if (v !== null) d.open = v === "1"; } catch (e) {}
+  d.addEventListener("toggle", () => { try { localStorage.setItem(key, d.open ? "1" : "0"); } catch (e) {} });
+});
+
 // start collapsed on narrow screens so the blade is visible first
 if (window.matchMedia("(max-width: 640px)").matches) document.body.classList.add("panel-collapsed");
 
@@ -1373,11 +1719,12 @@ function animate() {
   const nowF = performance.now(), dt = Math.min((nowF - lastFrame) / 1000, 0.1);
   lastFrame = nowF;
   if (spinToggle.checked && turbineGroup.visible) {
-    // clockwise seen from upwind; real time at rated rpm
-    const dA = RATED_RPM * 2*Math.PI / 60 * dt;
-    rotorArms.forEach(a => { a.rotation.z += dA; });
+    // leading edge first: blade-local LE sits at -Y, so the arm turns
+    // negatively about the rotor axis; real time at the slider's rpm
+    const dA = opState.rpm * 2*Math.PI / 60 * dt;
+    rotorArms.forEach(a => { a.rotation.z -= dA; });
   }
-  controls.update();
+  updateGizmo(dt);
   renderer.render(scene, camera);
   frames++;
   if (frames === 1) overlay.classList.add("hidden"); // first frame drawn -> reveal
