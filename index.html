@@ -83,18 +83,24 @@
   <div class="sub">Real chord/twist/prebend + blended airfoils + 12 actual composite shell layers from the WindIO YAML. Orbit/zoom with mouse. Checkboxes show/hide a layer. Slider clips the blade and fills the revealed cross-section live.</div>
   <div id="plyList"></div>
   <hr/>
+  <div style="font-size:11px; color:#9aa3af; margin:0 0 2px; text-transform:uppercase; letter-spacing:0.03em;">Scale comparison</div>
+  <label class="row"><input id="carToggle" type="checkbox" /> <span>Car (4.5 m) next to blade</span></label>
+  <label class="row"><input id="humanToggle" type="checkbox" /> <span>Human (1.75 m) next to root</span></label>
+  <label class="row"><input id="fieldToggle" type="checkbox" /> <span>Soccer field (105 × 68 m)</span></label>
+  <div id="refStatus" style="font-size:11px; color:#8891a0;"></div>
+  <hr/>
   <label class="row"><input id="wireToggle" type="checkbox" /> <span>Show mesh (wireframe)</span></label>
   <hr/>
   <div id="sliderRow">
-    <input id="cutSlider" type="range" min="0.02" max="1" step="0.001" value="0.3" />
-    <div id="cutLabel"><span>root</span><span id="cutValue">z = 0.30</span><span>tip</span></div>
+    <input id="cutSlider" type="range" min="0.02" max="1" step="0.001" value="1" />
+    <div id="cutLabel"><span>root</span><span id="cutValue">z = 1.00</span><span>tip</span></div>
   </div>
   <div id="stackReadout" style="font-size:11px; font-family: ui-monospace, monospace; color:#c7ccd4; margin-top:8px; line-height:1.5;"></div>
   <div id="rthickCheck" style="font-size:11px; font-family: ui-monospace, monospace; color:#9aa3af; margin-top:6px;"></div>
   <hr/>
   <div id="sliderRow">
-    <input id="exagSlider" type="range" min="1" max="10" step="0.5" value="3" />
-    <div id="cutLabel"><span>1x (true scale)</span><span id="exagValue">3.0x</span><span>10x</span></div>
+    <input id="exagSlider" type="range" min="1" max="10" step="0.5" value="1" />
+    <div id="cutLabel"><span>1x (true scale)</span><span id="exagValue">1.0x</span><span>10x</span></div>
   </div>
   <div id="statLine"></div>
 </div>
@@ -104,6 +110,8 @@
         onerror="window.__cdnFail=true"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"
         onerror="window.__cdnFail=true"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/DRACOLoader.js"></script>
 <script>
 // classic (non-module) scripts on purpose -- ES module imports are blocked
 // on file:// pages by Chrome's "unique security origin" policy.
@@ -233,7 +241,7 @@ function sectionCurve(z) {
 // =====================================================================
 
 const LAYERS = IEA22.layers; // stacking order OML -> inward, as given by the YAML
-let EXAG = 3.0;              // modest exaggeration (real stack is already up to ~12% of half-thickness)
+let EXAG = 1.0;              // modest exaggeration (real stack is already up to ~12% of half-thickness)
 const ZERO_EPS = 1e-9;
 
 // The exact YAML-defined thickness: a hard rectangular on/off window
@@ -607,7 +615,7 @@ scene.add(grid);
 // build one group per layer
 // =====================================================================
 
-const clipPlane = new THREE.Plane(new THREE.Vector3(-1, 0, 0), 0.3 * BLADE_LENGTH);
+const clipPlane = new THREE.Plane(new THREE.Vector3(-1, 0, 0), BLADE_LENGTH + 1);
 
 const plyGroups = {};
 const plyMeshes = {};
@@ -635,7 +643,7 @@ LAYERS.forEach((layer, idx) => {
   outerWire.visible = false; innerWire.visible = false;
 
   const capMat = new THREE.MeshStandardMaterial({ color, side: THREE.DoubleSide, metalness: 0.05, roughness: 0.5 });
-  const { geom: capGeom } = buildCapGeometry(idx, 0.3);
+  const { geom: capGeom } = buildCapGeometry(idx, 1.0);
   const capMesh = new THREE.Mesh(capGeom, capMat);
   capMeshes[layer.name] = capMesh;
 
@@ -684,7 +692,7 @@ WEBS.forEach((webLayer) => {
   outerWire.visible = false; innerWire.visible = false;
 
   const capMat = new THREE.MeshStandardMaterial({ color, side: THREE.DoubleSide, metalness: 0.05, roughness: 0.5 });
-  const { geom: capGeom } = buildWebCapGeometry(webLayer, 0.3);
+  const { geom: capGeom } = buildWebCapGeometry(webLayer, 1.0);
   const capMesh = new THREE.Mesh(capGeom, capMat);
   capMeshes[webLayer.name] = capMesh;
 
@@ -965,6 +973,111 @@ exagSlider.addEventListener("input", () => {
 });
 
 statLine.textContent = `Blade length ${BLADE_LENGTH.toFixed(1)} m · ${LAYERS.length} shell layers + ${WEBS.length} web sublayers · thickness x${EXAG}`;
+
+// =====================================================================
+// scale-reference models (car + human), loaded from CDN on first tick.
+// Each is normalised by bounding box to a real-world size in metres.
+// =====================================================================
+const refStatus = document.getElementById("refStatus");
+const GROUND_Y = -4; // grid height
+const MODEL_BASE = "https://cdn.jsdelivr.net/gh/mrdoob/three.js@r128/examples/models/gltf/";
+const gltfLoader = new THREE.GLTFLoader();
+const dracoLoader = new THREE.DRACOLoader();
+dracoLoader.setDecoderPath("https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/libs/draco/gltf/");
+gltfLoader.setDRACOLoader(dracoLoader);
+
+function loadRef(file, fit, place, onDone) {
+  gltfLoader.load(MODEL_BASE + file, (gltf) => {
+    const obj = gltf.scene;
+    obj.traverse(o => { if (o.isMesh) { o.frustumCulled = false; } });
+    const wrap = new THREE.Group();
+    wrap.add(obj);
+    fit(obj);                       // rotate/scale in place
+    const box = new THREE.Box3().setFromObject(obj);
+    obj.position.x -= (box.min.x + box.max.x) / 2;   // centre on X/Z, feet on y=0
+    obj.position.z -= (box.min.z + box.max.z) / 2;
+    obj.position.y -= box.min.y;
+    place(wrap);
+    scene.add(wrap);
+    onDone(wrap, gltf);
+  }, undefined, () => { refStatus.textContent = "Could not load " + file + " (offline?)"; });
+}
+
+function setupRefToggle(id, file, fit, place) {
+  const cb = document.getElementById(id);
+  let model = null, loading = false;
+  cb.addEventListener("change", () => {
+    if (model) { model.visible = cb.checked; return; }
+    if (!cb.checked || loading) return;
+    loading = true; refStatus.textContent = "Loading " + file + "…";
+    loadRef(file, fit, place, (m) => {
+      model = m; m.visible = cb.checked; loading = false; refStatus.textContent = "";
+    });
+  });
+}
+
+// human: Soldier.glb, upright along +Y, scaled to 1.75 m, standing beside the root
+setupRefToggle("humanToggle", "Soldier.glb",
+  (obj) => {
+    const b = new THREE.Box3().setFromObject(obj);
+    obj.scale.setScalar(1.75 / (b.max.y - b.min.y));
+  },
+  (wrap) => { wrap.position.set(2.5, GROUND_Y, 4.5); wrap.rotation.y = Math.PI / 2; }
+);
+
+// car: Ferrari, longest horizontal axis -> 4.5 m, parked parallel to the blade at mid-span
+setupRefToggle("carToggle", "ferrari.glb",
+  (obj) => {
+    const b = new THREE.Box3().setFromObject(obj);
+    const len = Math.max(b.max.x - b.min.x, b.max.z - b.min.z);
+    if (b.max.z - b.min.z > b.max.x - b.min.x) obj.rotation.y = Math.PI / 2; // long axis -> X
+    obj.scale.setScalar(4.5 / len);
+    obj.updateMatrixWorld(true);
+  },
+  (wrap) => { wrap.position.set(BLADE_LENGTH * 0.2, GROUND_Y, 8); }
+);
+
+// soccer field: procedural FIFA-size pitch (105 x 68 m) with line markings,
+// lying on the grid beside the blade, long side parallel to the span.
+const fieldGroup = (() => {
+  const L = 105, W = 68, PX = 12;           // PX = canvas pixels per metre
+  const cv = document.createElement("canvas");
+  cv.width = (L + 4) * PX; cv.height = (W + 4) * PX;
+  const g = cv.getContext("2d");
+  g.fillStyle = "#2e7d32"; g.fillRect(0, 0, cv.width, cv.height);
+  for (let i = 0; i < 14; i++) {            // mowing stripes
+    g.fillStyle = i % 2 ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.04)";
+    g.fillRect((2 + i * L / 14) * PX, 2 * PX, L / 14 * PX, W * PX);
+  }
+  g.strokeStyle = "#fff"; g.lineWidth = 0.12 * PX;
+  const X = m => (m + 2) * PX, Y = m => (m + 2) * PX;
+  g.strokeRect(X(0), Y(0), L * PX, W * PX);
+  g.beginPath(); g.moveTo(X(L/2), Y(0)); g.lineTo(X(L/2), Y(W)); g.stroke();
+  g.beginPath(); g.arc(X(L/2), Y(W/2), 9.15 * PX, 0, 7); g.stroke();
+  g.fillStyle = "#fff"; g.beginPath(); g.arc(X(L/2), Y(W/2), 0.25 * PX, 0, 7); g.fill();
+  [0, 1].forEach(end => {
+    const dir = end ? -1 : 1, x0 = end ? L : 0;
+    g.strokeRect(end ? X(L - 16.5) : X(0), Y(W/2 - 20.15), 16.5 * PX, 40.3 * PX);   // penalty area
+    g.strokeRect(end ? X(L - 5.5) : X(0), Y(W/2 - 9.16), 5.5 * PX, 18.32 * PX);     // goal area
+    g.beginPath(); g.arc(X(x0 + dir * 11), Y(W/2), 0.25 * PX, 0, 7); g.fill();       // penalty spot
+    g.beginPath(); g.arc(X(x0 + dir * 11), Y(W/2), 9.15 * PX, end ? -0.93 + Math.PI : -0.93, end ? 0.93 + Math.PI : 0.93); g.stroke(); // D
+  });
+  const tex = new THREE.CanvasTexture(cv);
+  tex.anisotropy = 8;
+  const mesh = new THREE.Mesh(
+    new THREE.PlaneGeometry(L + 4, W + 4),
+    new THREE.MeshBasicMaterial({ map: tex, side: THREE.DoubleSide })
+  );
+  mesh.rotation.x = -Math.PI / 2;
+  mesh.rotation.z = 0;
+  const grp = new THREE.Group();
+  grp.add(mesh);
+  grp.position.set(BLADE_LENGTH * 0.5, GROUND_Y + 0.05, -((W + 4) / 2 + 10)); // opposite side from car
+  grp.visible = false;
+  scene.add(grp);
+  return grp;
+})();
+document.getElementById("fieldToggle").addEventListener("change", (e) => { fieldGroup.visible = e.target.checked; });
 
 // =====================================================================
 // render loop
