@@ -70,14 +70,17 @@
 
   /* 2D section window */
   #secWin {
-    position:fixed; top:66px; right:16px; z-index:10; width:min(440px, calc(100vw - 32px));
+    position:fixed; top:66px; left:calc(100vw - 456px); z-index:12; width:440px; height:430px;
+    min-width:300px; min-height:280px; max-width:calc(100vw - 16px); max-height:calc(100vh - 16px);
+    display:flex; flex-direction:column; resize:both; box-sizing:border-box;
     background:rgba(20,22,28,0.92); border:1px solid rgba(255,255,255,0.08); border-radius:10px;
     box-shadow:0 8px 24px rgba(0,0,0,0.4); backdrop-filter: blur(6px); overflow:hidden;
   }
-  #secWin header { display:flex; justify-content:space-between; align-items:center; padding:8px 12px 0; font-size:12px; font-weight:600; color:#fff; }
+  #secWin[hidden] { display:none; }
+  #secWin header { display:flex; justify-content:space-between; align-items:center; padding:8px 12px 0; font-size:12px; font-weight:600; color:#fff; cursor:move; user-select:none; touch-action:none; }
   #secWin header button { background:none; border:none; color:#9aa3af; font-size:15px; cursor:pointer; line-height:1; }
-  #secCanvas { display:block; width:100%; height:260px; }
-  #secInfo { font-size:11px; font-family:ui-monospace, monospace; color:#c7ccd4; line-height:1.55; padding:0 12px 10px; }
+  #secCanvas { display:block; width:100%; flex:1 1 auto; min-height:0; }
+  #secInfo { flex:0 0 auto; font-size:11px; font-family:ui-monospace, monospace; color:#c7ccd4; line-height:1.55; padding:0 12px 14px; }
 
   /* panel collapse toggle */
   #panelToggle {
@@ -149,8 +152,7 @@
     #panelToggle { top:12px; left:12px; }
     #panel h1 { font-size:13px; }
     #aboutBtn { top:12px; right:12px; padding:0 11px; }
-    #secWin { top:58px; right:12px; width:calc(100vw - 24px); }
-    #secCanvas { height:200px; }
+    #secWin { top:58px; left:12px; width:calc(100vw - 24px); height:380px; }
     #toolbar { bottom:12px; }
     #aboutDialog .about-inner { padding:18px 16px 16px; }
   }
@@ -214,6 +216,7 @@
     <summary>Rotor &amp; pitch</summary>
     <div class="sec-body">
       <label class="row"><input id="turbineToggle" type="checkbox" /> <span>Full turbine (3 blades, hub, tower)</span></label>
+      <label class="row"><input id="rotCW" type="checkbox" checked /> <span>Clockwise seen from upwind</span></label>
       <button id="pauseBtnPanel" class="btn" type="button">⏸ Pause rotor</button>
       <div class="ctl">
         <div class="ctl-head"><span>Rotor speed</span><output id="rpmValue"></output></div>
@@ -244,6 +247,8 @@
         <span><i style="background:#26c6da"></i>thrust Fn</span>
         <span><i style="background:#ffee58"></i>driving Ft</span>
       </div>
+      <label class="row"><input id="cutOnlyToggle" type="checkbox" /> <span>Arrows only at the cut station</span></label>
+      <label class="row"><input id="labels3dToggle" type="checkbox" /> <span>Value labels at the cut station (3D)</span></label>
       <div class="ctl">
         <div class="ctl-head"><span>Wind speed</span><output id="windValue"></output></div>
         <input id="windSlider" type="range" min="3" max="25" step="0.1" value="11" />
@@ -276,7 +281,13 @@
 </div>
 
 <div id="secWin" hidden>
-  <header><span>Blade section at the cut</span><button id="secClose" title="Close" aria-label="Close">✕</button></header>
+  <header>
+    <span>Blade section at the cut</span>
+    <span style="display:flex; align-items:center; gap:10px;">
+      <label style="font-weight:400; color:#c7ccd4; display:flex; align-items:center; gap:5px; cursor:pointer;"><input id="secFlip" type="checkbox" checked /> suction side up</label>
+      <button id="secClose" title="Close" aria-label="Close">✕</button>
+    </span>
+  </header>
   <canvas id="secCanvas"></canvas>
   <div id="secInfo"></div>
 </div>
@@ -404,10 +415,13 @@ const BLADE_LENGTH = IEA22.bladeLength;
 function chordAt(z)         { return field(IEA22.chord, z); }
 // geometry switches (Blade geometry panel); everything downstream reads these
 const BLADE_GEOM = { twist: true, prebend: true, sweep: true, precone: true };
-// The section coordinates come out chordwise-mirrored relative to a rotor
-// turning clockwise seen from upwind; flip Y so the leading edge leads
-// (LE at +Y, blade moving +Y). Normals follow automatically (signed area).
-const CHORD_MIRROR = -1;
+// Rotation sense. The section coordinates come out chordwise-mirrored
+// relative to a rotor turning clockwise seen from upwind, so for clockwise
+// we flip Y (LE at +Y, blade moving +Y); counter-clockwise keeps the raw
+// coordinates (LE at -Y, moving -Y). Normals follow automatically (signed
+// area). leSign() is the side the leading edge -- and the motion -- is on.
+let CHORD_MIRROR = -1;
+const leSign = () => -CHORD_MIRROR;
 function twistDegAt(z)      { return BLADE_GEOM.twist ? field(IEA22.twistDeg, z) : 0; }
 function sectionOffsetYAt(z){ return field(IEA22.sectionOffsetY, z); }
 function refAxisAt(z) {   // [prebend (-> Z), presweep (-> Y), span (-> X)]
@@ -488,14 +502,17 @@ const LAYER_SEP = 2.5e-4; // m per layer index
 // (s0 <= s <= s1), no cosmetic smoothing of any kind. Ply-drop edges will
 // render as genuine hard steps -- that's deliberate: this view is for
 // verifying the real geometry, not for a "prettied up" render.
-function layerThicknessAt(layer, s, z) {
-  const tmax = field(layer.thickness, z);
-  if (tmax <= ZERO_EPS) return 0;
-  const s0 = field(layer.startNdArc, z);
-  const s1 = field(layer.endNdArc, z);
-  const inside = (s0 <= 1e-6 && s1 >= 1-1e-6) ? true : (s >= s0 && s <= s1);
-  return inside ? tmax * EXAG : 0;
+// split into the per-station part (three table lookups) and the cheap
+// per-point test, so loops over the chordwise points look up once per station
+function layerParamsAt(layer, z) {
+  return { tmax: field(layer.thickness, z), s0: field(layer.startNdArc, z), s1: field(layer.endNdArc, z) };
 }
+function thicknessFromParams(p, s) {
+  if (p.tmax <= ZERO_EPS) return 0;
+  const inside = (p.s0 <= 1e-6 && p.s1 >= 1-1e-6) ? true : (s >= p.s0 && s <= p.s1);
+  return inside ? p.tmax * EXAG : 0;
+}
+function layerThicknessAt(layer, s, z) { return thicknessFromParams(layerParamsAt(layer, z), s); }
 const layerThicknessHardAt = layerThicknessAt; // kept as an alias: everything is "hard" now
 
 // =====================================================================
@@ -515,11 +532,12 @@ function buildPlyShell(layerIdx) {
   for (let iz = 0; iz < N_Z; iz++) {
     const z = zGrid[iz];
     const sec = sectionCache[iz];
+    const prm = LAYERS.slice(0, layerIdx + 1).map(l => layerParamsAt(l, z));
     for (let is = 0; is < N_S; is++) {
       const s = sGrid[is];
       let cumBefore = 0;
-      for (let k = 0; k < layerIdx; k++) cumBefore += layerThicknessAt(LAYERS[k], s, z);
-      const t = layerThicknessAt(layer, s, z);
+      for (let k = 0; k < layerIdx; k++) cumBefore += thicknessFromParams(prm[k], s);
+      const t = thicknessFromParams(prm[layerIdx], s);
       cumBefore += layerIdx * LAYER_SEP;
       const cumAfter = cumBefore + t;
       tGrid[iz*N_S + is] = t;
@@ -879,6 +897,20 @@ const capWireframes = {};
 const plyWireframes = {};
 const wireMat = new THREE.LineBasicMaterial({ color: 0x0a0a0a, transparent: true, opacity: 0.3 });
 
+// wireframes cost ~25 ms per ply surface to build and are hidden by default:
+// remember each one's source geometry and only build it while shown
+const _noWire = new THREE.BufferGeometry();
+function setWireSource(lines, src) {
+  if (lines.geometry !== _noWire) lines.geometry.dispose();
+  lines.userData.src = src;
+  lines.geometry = document.getElementById("wireToggle").checked ? new THREE.WireframeGeometry(src) : _noWire;
+}
+function wireFor(src, mat) {
+  const lines = new THREE.LineSegments(_noWire, mat);
+  setWireSource(lines, src);
+  return lines;
+}
+
 // LAYER_SEP alone can't keep a 0.5 mm gelcoat in front of the ply beneath
 // it at a distance or at grazing angles, and logarithmic depth disables
 // polygonOffset -- so do the same thing in the fragment shader: push each
@@ -891,8 +923,13 @@ const wireMat = new THREE.LineBasicMaterial({ color: 0x0a0a0a, transparent: true
 const LAYER_DEPTH_BIAS = 2.5e-6;   // log-depth units per layer step, ~2e-5 of the view distance
 function withLayerDepthBias(mat, layerIdx, frontIsOutward) {
   const stepsFromOutside = layerIdx, stepsFromInside = LAYERS.length - 1 - layerIdx;
-  const front = { value: frontIsOutward ? stepsFromOutside : stepsFromInside };
-  const back = { value: frontIsOutward ? stepsFromInside : stepsFromOutside };
+  const front = { value: 0 }, back = { value: 0 };
+  // called again when the rotation sense flips the winding
+  mat.userData.setFrontIsOutward = (out) => {
+    front.value = out ? stepsFromOutside : stepsFromInside;
+    back.value = out ? stepsFromInside : stepsFromOutside;
+  };
+  mat.userData.setFrontIsOutward(frontIsOutward);
   mat.onBeforeCompile = (shader) => {
     shader.uniforms.uStepsFront = front;
     shader.uniforms.uStepsBack = back;
@@ -924,8 +961,8 @@ LAYERS.forEach((layer, idx) => {
 
   const outerWireMat = wireMat.clone(); outerWireMat.clippingPlanes = [clipPlane];
   const innerWireMat = wireMat.clone(); innerWireMat.clippingPlanes = [clipPlane];
-  const outerWire = new THREE.LineSegments(new THREE.WireframeGeometry(outerGeom), outerWireMat);
-  const innerWire = new THREE.LineSegments(new THREE.WireframeGeometry(innerGeom), innerWireMat);
+  const outerWire = wireFor(outerGeom, outerWireMat);
+  const innerWire = wireFor(innerGeom, innerWireMat);
   outerWire.visible = false; innerWire.visible = false;
 
   const capMat = new THREE.MeshStandardMaterial({ color, side: THREE.DoubleSide, metalness: 0.05, roughness: 0.5 });
@@ -933,7 +970,7 @@ LAYERS.forEach((layer, idx) => {
   const capMesh = new THREE.Mesh(capGeom, capMat);
   capMeshes[layer.name] = capMesh;
 
-  const capWire = new THREE.LineSegments(new THREE.WireframeGeometry(capGeom), wireMat.clone());
+  const capWire = wireFor(capGeom, wireMat.clone());
   capWire.visible = false;
   capWireframes[layer.name] = capWire;
   plyWireframes[layer.name] = { outer: outerWire, inner: innerWire };
@@ -973,8 +1010,8 @@ WEBS.forEach((webLayer) => {
 
   const outerWireMat = wireMat.clone(); outerWireMat.clippingPlanes = [clipPlane];
   const innerWireMat = wireMat.clone(); innerWireMat.clippingPlanes = [clipPlane];
-  const outerWire = new THREE.LineSegments(new THREE.WireframeGeometry(outerGeom), outerWireMat);
-  const innerWire = new THREE.LineSegments(new THREE.WireframeGeometry(innerGeom), innerWireMat);
+  const outerWire = wireFor(outerGeom, outerWireMat);
+  const innerWire = wireFor(innerGeom, innerWireMat);
   outerWire.visible = false; innerWire.visible = false;
 
   const capMat = new THREE.MeshStandardMaterial({ color, side: THREE.DoubleSide, metalness: 0.05, roughness: 0.5 });
@@ -982,7 +1019,7 @@ WEBS.forEach((webLayer) => {
   const capMesh = new THREE.Mesh(capGeom, capMat);
   capMeshes[webLayer.name] = capMesh;
 
-  const capWire = new THREE.LineSegments(new THREE.WireframeGeometry(capGeom), wireMat.clone());
+  const capWire = wireFor(capGeom, wireMat.clone());
   capWire.visible = false;
   capWireframes[webLayer.name] = capWire;
   plyWireframes[webLayer.name] = { outer: outerWire, inner: innerWire };
@@ -1143,6 +1180,10 @@ const ATTACH_COLORS = { web0: 0x00e5ff, web1: 0x00ff88, web2: 0xffee00 };
 const wireToggle = document.getElementById("wireToggle");
 wireToggle.addEventListener("change", () => {
   ALL_PLY_NAMES.forEach(name => {
+    // build any wireframe skipped while hidden (see setWireSource)
+    [plyWireframes[name].outer, plyWireframes[name].inner, capWireframes[name]].forEach(l => {
+      if (wireToggle.checked && l.geometry === _noWire && l.userData.src) setWireSource(l, l.userData.src);
+    });
     plyWireframes[name].outer.visible = wireToggle.checked;
     plyWireframes[name].inner.visible = wireToggle.checked;
     capWireframes[name].visible = wireToggle.checked && capMeshes[name].visible;
@@ -1189,9 +1230,7 @@ function updateCut(zCut) {
     capMeshes[layer.name].geometry = geom;
     capMeshes[layer.name].visible = anyThickness;
 
-    const oldWireGeom = capWireframes[layer.name].geometry;
-    capWireframes[layer.name].geometry = new THREE.WireframeGeometry(geom);
-    oldWireGeom.dispose();
+    setWireSource(capWireframes[layer.name], geom);
     capWireframes[layer.name].visible = wireToggle.checked && anyThickness;
   });
 
@@ -1201,9 +1240,7 @@ function updateCut(zCut) {
     capMeshes[webLayer.name].geometry = geom;
     capMeshes[webLayer.name].visible = anyThickness;
 
-    const oldWireGeom = capWireframes[webLayer.name].geometry;
-    capWireframes[webLayer.name].geometry = new THREE.WireframeGeometry(geom);
-    oldWireGeom.dispose();
+    setWireSource(capWireframes[webLayer.name], geom);
     capWireframes[webLayer.name].visible = wireToggle.checked && anyThickness;
   });
 }
@@ -1218,9 +1255,8 @@ function rebuildForExaggeration() {
     meshes.inner.geometry.dispose(); meshes.inner.geometry = innerGeom;
 
     const wf = plyWireframes[layer.name];
-    const oldOuterWire = wf.outer.geometry, oldInnerWire = wf.inner.geometry;
-    wf.outer.geometry = new THREE.WireframeGeometry(outerGeom); oldOuterWire.dispose();
-    wf.inner.geometry = new THREE.WireframeGeometry(innerGeom); oldInnerWire.dispose();
+    setWireSource(wf.outer, outerGeom);
+    setWireSource(wf.inner, innerGeom);
 
     const ec = endCapMeshes[layer.name];
     const { geom: rootGeom, anyThickness: rootEx } = buildCapGeometry(idx, 0.0, -1);
@@ -1236,9 +1272,8 @@ function rebuildForExaggeration() {
     meshes.inner.geometry.dispose(); meshes.inner.geometry = innerGeom;
 
     const wf = plyWireframes[webLayer.name];
-    const oldOuterWire = wf.outer.geometry, oldInnerWire = wf.inner.geometry;
-    wf.outer.geometry = new THREE.WireframeGeometry(outerGeom); oldOuterWire.dispose();
-    wf.inner.geometry = new THREE.WireframeGeometry(innerGeom); oldInnerWire.dispose();
+    setWireSource(wf.outer, outerGeom);
+    setWireSource(wf.inner, innerGeom);
 
     const ec = endCapMeshes[webLayer.name];
     const { geom: rootGeom, anyThickness: rootEx } = buildWebCapGeometry(webLayer, 0.0, -1);
@@ -1252,11 +1287,17 @@ function rebuildForExaggeration() {
 
 const exagSlider = document.getElementById("exagSlider");
 const exagValueLabel = document.getElementById("exagValue");
+let _exagQueued = false;   // a drag fires many input events; rebuild at most once per frame
 exagSlider.addEventListener("input", () => {
   EXAG = parseFloat(exagSlider.value);
   exagValueLabel.textContent = EXAG.toFixed(1) + "x";
-  rebuildForExaggeration();
-  statLine.textContent = `Blade length ${BLADE_LENGTH.toFixed(1)} m · ${LAYERS.length} shell layers + ${WEBS.length} web sublayers · thickness x${EXAG.toFixed(1)}`;
+  if (_exagQueued) return;
+  _exagQueued = true;
+  requestAnimationFrame(() => {
+    _exagQueued = false;
+    rebuildForExaggeration();
+    statLine.textContent = `Blade length ${BLADE_LENGTH.toFixed(1)} m · ${LAYERS.length} shell layers + ${WEBS.length} web sublayers · thickness x${EXAG.toFixed(1)}`;
+  });
 });
 
 statLine.textContent = `Blade length ${BLADE_LENGTH.toFixed(1)} m · ${LAYERS.length} shell layers + ${WEBS.length} web sublayers · thickness x${EXAG}`;
@@ -1275,6 +1316,7 @@ gltfLoader.setDRACOLoader(dracoLoader);
 
 function loadRef(file, fit, place, onDone) {
   gltfLoader.load(MODEL_BASE + file, (gltf) => {
+    invalidate(1000);
     const obj = gltf.scene;
     obj.traverse(o => { if (o.isMesh) { o.frustumCulled = false; } });
     const wrap = new THREE.Group();
@@ -1500,8 +1542,9 @@ document.getElementById("eiffelToggle").addEventListener("change", (e) => {
 
 // =====================================================================
 // rotor operating point + quasi-steady 2D blade-element aerodynamics.
-// Blade frame (after the chordwise mirror): span +X, leading edge +Y (the
-// blade moves LE-first along +Y), downwind +Z. At each station:
+// Blade frame: span +X, leading edge on the leSign() side of Y (the blade
+// moves LE-first that way), downwind +Z. Written below for clockwise
+// (LE at +Y); every Y direction is multiplied by leSign(). At each station:
 //   axial      U(1-a)·cosγ   air arriving along +Z            (γ = precone)
 //   rotational Ωr            air arriving along -Y (blade moves +Y)
 //   relative   W             their sum, hitting the leading edge
@@ -1545,10 +1588,12 @@ computeLeStations();
 const opState = { rpm: RATED_RPM, pitchDeg: IEA22_AERO.finePitchDeg, wind: 11, induction: 1/3 };
 
 // pitch turns the section about the pitch axis (blade X); positive pitch
-// turns the LE upwind (-Z), i.e. toward feather -- the same sense as twist
+// turns the LE upwind (-Z), i.e. toward feather -- the same sense as twist.
+// This is the same rotation as setting rotation.x = pitchAngle() on the rig.
+const pitchAngle = () => -leSign() * opState.pitchDeg * Math.PI/180;
 function pitchYZ([y, z]) {
-  const p = opState.pitchDeg * Math.PI/180, c = Math.cos(p), s = Math.sin(p);
-  return [y*c + z*s, -y*s + z*c];
+  const t = pitchAngle(), c = Math.cos(t), s = Math.sin(t);
+  return [y*c - z*s, y*s + z*c];
 }
 
 function sectionAero(st) {
@@ -1565,12 +1610,12 @@ function sectionAero(st) {
   const cl = (1 - st.blend) * p0.cl + st.blend * p1.cl, cd = (1 - st.blend) * p0.cd + st.blend * p1.cd;
   const q = 0.5 * RHO_AIR * W * W * st.chord;                   // N/m per unit coefficient
   const L = q * cl, D = q * cd;
-  const cphi = ut / W, sphi = ua / W;
+  const cphi = ut / W, sphi = ua / W, sY = leSign();
   return {
     r, ua, ut, W, phi, beta, alpha, cl, cd, L, D,
     Fn: L*cphi + D*sphi, Ft: L*sphi - D*cphi,
     // unit directions in the blade (Y, Z) plane
-    dirW: [-cphi, sphi], dirL: [sphi, cphi], dirD: [-cphi, sphi],
+    dirW: [-cphi*sY, sphi], dirL: [sphi*sY, cphi], dirD: [-cphi*sY, sphi],
   };
 }
 
@@ -1598,39 +1643,74 @@ coneRig.add(windGroupMain);
 [windGroupMain, ...turbineWindGroups].forEach(g => { g.userData.noPick = true; g.visible = false; });
 
 // the fixed stations up to the cut, plus the cut station itself
+// (or only the cut station)
 function arrowStations() {
   const zc = parseFloat(slider.value);
-  if (zc >= 0.995) return leStations;
-  return [...leStations.filter(st => st.z < zc - 0.02), makeStation(Math.max(zc, 0.02))];
+  const cutSt = () => Object.assign(makeStation(Math.min(Math.max(zc, 0.02), 0.98)), { labelled: true });
+  if (cutOnlyToggle.checked) return [cutSt()];
+  if (zc >= 0.995) return leStations.map((st, i) => i === leStations.length - 1 ? { ...st, labelled: true } : st);
+  return [...leStations.filter(st => st.z < zc - 0.02), cutSt()];
 }
 
-function fillAeroArrows(group, stations) {
+// value labels: one camera-facing block per station (colour-coded lines,
+// one per arrow), constant size on screen, drawn on top, beside the LE.
+// Per-arrow labels pile up where several arrows share an end point.
+function makeLabelBlock(lines) {
+  const fs = 26, lh = 34, pad = 10, cv = document.createElement("canvas"), g = cv.getContext("2d");
+  g.font = `600 ${fs}px system-ui, sans-serif`;
+  cv.width = Math.ceil(Math.max(...lines.map(l => g.measureText(l.text).width))) + pad*2;
+  cv.height = lines.length * lh + pad*2;
+  g.font = `600 ${fs}px system-ui, sans-serif`;
+  g.fillStyle = "rgba(14,16,21,0.8)"; g.fillRect(0, 0, cv.width, cv.height);
+  g.textBaseline = "middle";
+  lines.forEach((l, i) => { g.fillStyle = hex(l.color); g.fillText(l.text, pad, pad + lh*(i + 0.5)); });
+  const tex = new THREE.CanvasTexture(cv);
+  tex.minFilter = THREE.LinearFilter;
+  const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, sizeAttenuation: false, depthTest: false, depthWrite: false }));
+  const h = 0.024 * lines.length;          // ~0.024 of the view height per line
+  sp.scale.set(h * cv.width / cv.height, h, 1);
+  sp.center.set(-0.06, 0.5);               // just to the right of the anchor
+  sp.renderOrder = 998;
+  return sp;
+}
+
+function fillAeroArrows(group, stations, withLabels) {
+  group.traverse(o => { if (o.isSprite) { o.material.map.dispose(); o.material.dispose(); } });
   group.clear();
-  const showV = windToggle.checked, showF = forceToggle.checked;
+  const showV = windToggle.checked, showF = forceToggle.checked, labels = withLabels && labels3dToggle.checked;
+  const sY = leSign();
   stations.forEach(st => {
-    const a = sectionAero(st);
+    const a = sectionAero(st), lines = [];
     const [ly, lz] = pitchYZ(st.le), [ty, tz] = pitchYZ(st.te);
     const le = new THREE.Vector3(st.X, ly, lz);
     const qc = new THREE.Vector3(st.X, ly + 0.25*(ty - ly), lz + 0.25*(tz - lz));  // aerodynamic centre
-    const add = (at, dy, dz, len, color, endAt) => {
+    const add = (at, dy, dz, len, color, endAt, label) => {
       if (len < 0.05) return;
       const dir = new THREE.Vector3(0, dy, dz).normalize();
       const from = endAt ? at.clone().addScaledVector(dir, -len) : at;
       group.add(makeArrow(from, dir, len, color));
+      if (label) lines.push({ text: label, color });
     };
+    const kN = v => (v / 1000).toFixed(2) + " kN/m";
     if (showV) {
-      add(le, 0, 1, a.ua * ARROW_M_PER_MPS, AERO_COLORS.axial, true);
-      add(le, -1, 0, a.ut * ARROW_M_PER_MPS, AERO_COLORS.rot, true);
-      add(le, a.dirW[0], a.dirW[1], a.W * ARROW_M_PER_MPS, AERO_COLORS.rel, true);
+      add(le, 0, 1, a.ua * ARROW_M_PER_MPS, AERO_COLORS.axial, true, `U(1−a) ${a.ua.toFixed(1)} m/s`);
+      add(le, -sY, 0, a.ut * ARROW_M_PER_MPS, AERO_COLORS.rot, true, `Ωr ${a.ut.toFixed(1)} m/s`);
+      add(le, a.dirW[0], a.dirW[1], a.W * ARROW_M_PER_MPS, AERO_COLORS.rel, true, `W ${a.W.toFixed(1)} m/s`);
     }
     if (showF) {
       const k = ARROW_M_PER_KNPM / 1000, sgn = v => Math.sign(v) || 1;
-      add(qc, a.dirL[0]*sgn(a.L), a.dirL[1]*sgn(a.L), Math.abs(a.L)*k, AERO_COLORS.lift);
-      add(qc, a.dirD[0], a.dirD[1], Math.abs(a.D)*k, AERO_COLORS.drag);
+      add(qc, a.dirL[0]*sgn(a.L), a.dirL[1]*sgn(a.L), Math.abs(a.L)*k, AERO_COLORS.lift, false, `L ${kN(a.L)}`);
+      add(qc, a.dirD[0], a.dirD[1], Math.abs(a.D)*k, AERO_COLORS.drag, false, `D ${kN(a.D)}`);
       const Ry = a.L*a.dirL[0] + a.D*a.dirD[0], Rz = a.L*a.dirL[1] + a.D*a.dirD[1];
-      add(qc, Ry, Rz, Math.hypot(Ry, Rz)*k, AERO_COLORS.res);
-      add(qc, 0, sgn(a.Fn), Math.abs(a.Fn)*k, AERO_COLORS.thrust);
-      add(qc, sgn(a.Ft), 0, Math.abs(a.Ft)*k, AERO_COLORS.torque);
+      add(qc, Ry, Rz, Math.hypot(Ry, Rz)*k, AERO_COLORS.res, false, `R ${kN(Math.hypot(Ry, Rz))}`);
+      add(qc, 0, sgn(a.Fn), Math.abs(a.Fn)*k, AERO_COLORS.thrust, false, `Fn ${kN(a.Fn)}`);
+      add(qc, sgn(a.Ft)*sY, 0, Math.abs(a.Ft)*k, AERO_COLORS.torque, false, `Ft ${kN(a.Ft)}`);
+    }
+    if (labels && st.labelled && lines.length) {   // one block only: more just pile up
+      lines.unshift({ text: `r ${a.r.toFixed(1)} m · φ ${a.phi.toFixed(1)}° · α ${a.alpha.toFixed(1)}°`, color: 0xc7ccd4 });
+      const sp = makeLabelBlock(lines);
+      sp.position.copy(le);
+      group.add(sp);
     }
   });
 }
@@ -1641,6 +1721,8 @@ const windSlider = document.getElementById("windSlider");
 const inducSlider = document.getElementById("inducSlider");
 const windToggle = document.getElementById("windToggle");
 const forceToggle = document.getElementById("forceToggle");
+const cutOnlyToggle = document.getElementById("cutOnlyToggle");
+const labels3dToggle = document.getElementById("labels3dToggle");
 rpmSlider.value = RATED_RPM;
 pitchSlider.value = IEA22_AERO.finePitchDeg;
 
@@ -1667,9 +1749,8 @@ function updateOperatingPoint() {
     `twist+pitch ${a.beta.toFixed(1)}° → α ${a.alpha.toFixed(1)}° · Cl ${a.cl.toFixed(2)} · Cd ${a.cd.toFixed(3)}<br/>` +
     `thrust ${(a.Fn/1000).toFixed(2)} kN/m · driving ${(a.Ft/1000).toFixed(2)} kN/m`;
 
-  const p = opState.pitchDeg * Math.PI/180;
-  bladeRig.rotation.x = -p;
-  turbinePitchGroups.forEach(g => { g.rotation.x = -p; });
+  bladeRig.rotation.x = pitchAngle();
+  turbinePitchGroups.forEach(g => { g.rotation.x = pitchAngle(); });
 
   refreshAeroArrows();
   drawSectionView();
@@ -1678,11 +1759,21 @@ function refreshAeroArrows() {
   const stations = (windToggle.checked || forceToggle.checked) ? arrowStations() : [];
   [windGroupMain, ...turbineWindGroups].forEach(g => {
     g.visible = stations.length > 0;
-    fillAeroArrows(g, stations);
+    fillAeroArrows(g, stations, g === windGroupMain);
   });
 }
 [rpmSlider, pitchSlider, windSlider, inducSlider].forEach(el => el.addEventListener("input", updateOperatingPoint));
-[windToggle, forceToggle].forEach(el => el.addEventListener("change", updateOperatingPoint));
+[windToggle, forceToggle, cutOnlyToggle, labels3dToggle].forEach(el => el.addEventListener("change", updateOperatingPoint));
+
+document.getElementById("rotCW").addEventListener("change", (e) => {
+  CHORD_MIRROR = e.target.checked ? -1 : 1;
+  rebuildBladeGeometry();
+  LAYERS.forEach(l => {   // the mirror flips the winding, so swap which face is "outside"
+    plyMeshes[l.name].outer.material.userData.setFrontIsOutward(CHORD_MIRROR > 0);
+    plyMeshes[l.name].inner.material.userData.setFrontIsOutward(CHORD_MIRROR < 0);
+  });
+  updateOperatingPoint();
+});
 
 // --- blade geometry toggles: twist / prebend / presweep rebuild every
 // section; precone just tilts the blade about the hub's tangential axis ---
@@ -1753,20 +1844,39 @@ function drawSectionView() {
   ctx.clearRect(0, 0, W, H);
   ctx.font = "11px system-ui, sans-serif";
 
+  // Everything below is drawn in one canonical layout (LE / motion to the
+  // left, wind blowing down); a mirror transform then gives the true view
+  // from the tip (LE on the right for counter-clockwise) and the optional
+  // suction-side-up flip. Text is placed through M() so it never mirrors.
+  const sY = leSign();
+  const hx = sY > 0 ? 1 : -1, vy = secFlip.checked ? -1 : 1;
+  const M = (x, y) => [hx > 0 ? x : W - x, vy > 0 ? y : H - y];
+  const mirrored = () => ctx.setTransform(dpr*hx, 0, 0, dpr*vy, hx > 0 ? 0 : W*dpr, vy > 0 ? 0 : H*dpr);
+  const plain = () => ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  const text = (str, x, y, centred) => {
+    const [mx, my] = M(x, y);
+    plain();
+    ctx.fillText(str, centred ? mx - ctx.measureText(str).width/2 : (hx > 0 ? mx : mx - ctx.measureText(str).width), my);
+    mirrored();
+  };
+
   const le = pitchYZ(st.le), te = pitchYZ(st.te);
   const qcY = le[0] + 0.25*(te[0] - le[0]), qcZ = le[1] + 0.25*(te[1] - le[1]);
   const s = 0.36 * W / st.chord;                       // px per metre of section
   const cx = 0.6 * W, cy = 0.52 * H;
-  const P = (y, z) => [cx - (y - qcY) * s, cy + (z - qcZ) * s];
+  const P = (y, z) => [cx - sY*(y - qcY) * s, cy + (z - qcZ) * s];
 
   // rotor plane through the LE + axis labels
   const LE = P(le[0], le[1]), TE = P(te[0], te[1]);
+  mirrored();
   ctx.strokeStyle = "rgba(255,255,255,0.18)"; ctx.setLineDash([4, 4]);
   ctx.beginPath(); ctx.moveTo(8, LE[1]); ctx.lineTo(W - 8, LE[1]); ctx.stroke();
   ctx.setLineDash([]);
   ctx.fillStyle = "#7d8693";
-  ctx.fillText("rotor plane", 10, LE[1] + 14);
-  ctx.fillText("wind ↓  ·  blade moves ←  ·  seen from tip", 10, 16);
+  plain();
+  ctx.fillText("rotor plane", 10, M(0, LE[1] + (vy > 0 ? 14 : -14))[1] + 4);
+  ctx.fillText(`wind ${vy > 0 ? "↓" : "↑"}  ·  blade moves ${hx > 0 ? "←" : "→"}  ·  seen from tip`, 10, 16);
+  mirrored();
 
   // section outline (pitched)
   ctx.beginPath();
@@ -1803,9 +1913,8 @@ function drawSectionView() {
     ctx.lineTo(x1 - ux*h + uy*h*0.45, y1 - uy*h - ux*h*0.45); ctx.closePath(); ctx.fill();
     if (label) {
       ctx.font = "600 11px system-ui, sans-serif";
-      const tw = ctx.measureText(label).width, side = labelSide || 1;
-      const lx = (x0 + x1)/2 - uy*12*side, ly = (y0 + y1)/2 + ux*12*side;
-      ctx.fillText(label, lx - tw/2, ly + 4);
+      const side = labelSide || 1;
+      text(label, (x0 + x1)/2 - uy*12*side, (y0 + y1)/2 + ux*12*side + 4*vy, true);
       ctx.font = "11px system-ui, sans-serif";
     }
   };
@@ -1823,7 +1932,7 @@ function drawSectionView() {
     ctx.strokeStyle = ctx.fillStyle = color; ctx.lineWidth = 1.2;
     ctx.beginPath(); ctx.arc(LE[0], LE[1], r, Math.PI + lo, Math.PI + hi); ctx.stroke();
     const m = Math.PI + (lo + hi) / 2;
-    ctx.fillText(label, LE[0] + Math.cos(m)*(r + 9) - 6, LE[1] + Math.sin(m)*(r + 9) + 4);
+    text(label, LE[0] + Math.cos(m)*(r + 9), LE[1] + Math.sin(m)*(r + 9) + 4*vy, true);
   };
   const rad = d => d * Math.PI/180;
   arc(34, 0, rad(a.beta), "#c7ccd4", "β");
@@ -1834,7 +1943,7 @@ function drawSectionView() {
   const QC = P(qcY, qcZ);
   const fMax = Math.max(Math.abs(a.L), Math.abs(a.D), Math.abs(a.Fn), Math.abs(a.Ft), 1);
   const sf = 0.3 * H / fMax;
-  const F = (fy, fz) => [QC[0] - fy*sf, QC[1] + fz*sf];
+  const F = (fy, fz) => [QC[0] - sY*fy*sf, QC[1] + fz*sf];
   const Lp = F(a.L*a.dirL[0], a.L*a.dirL[1]), Dp = F(a.D*a.dirD[0], a.D*a.dirD[1]);
   const Ry = a.L*a.dirL[0] + a.D*a.dirD[0], Rz = a.L*a.dirL[1] + a.D*a.dirD[1], Rp = F(Ry, Rz);
   arrow2d(QC[0], QC[1], ...F(0, a.Fn), AERO_COLORS.thrust, "Fn", true, -1);
@@ -1846,6 +1955,7 @@ function drawSectionView() {
   arrow2d(QC[0], QC[1], Dp[0], Dp[1], AERO_COLORS.drag, "D", false, 1);
   arrow2d(QC[0], QC[1], Rp[0], Rp[1], AERO_COLORS.res, "R", false, -1);
 
+  plain();
   const kN = v => (v / 1000).toFixed(2);
   const af = st.airfoils[0] === st.airfoils[1] ? st.airfoils[0]
     : `${st.airfoils[0]} → ${st.airfoils[1]} (${(st.blend*100).toFixed(0)}%)`;
@@ -1857,6 +1967,50 @@ function drawSectionView() {
     `Fn (thrust) ${kN(a.Fn)} · Ft (driving) ${kN(a.Ft)} kN/m`;
 }
 secToggle.addEventListener("change", drawSectionView);
+
+// drag the window by its title bar; resize with the corner grip (CSS
+// resize). Position and size are remembered per viewer, best effort.
+(() => {
+  const head = secWin.querySelector("header"), KEY = "iea22-secwin";
+  const clamp = () => {
+    const r = secWin.getBoundingClientRect();
+    secWin.style.left = Math.min(Math.max(r.left, 8 - r.width + 80), innerWidth - 80) + "px";
+    secWin.style.top = Math.min(Math.max(r.top, 8), innerHeight - 40) + "px";
+  };
+  const save = () => {
+    try { localStorage.setItem(KEY, JSON.stringify({ l: secWin.style.left, t: secWin.style.top, w: secWin.style.width, h: secWin.style.height })); } catch (e) {}
+  };
+  try {
+    const v = JSON.parse(localStorage.getItem(KEY) || "null");
+    if (v) Object.assign(secWin.style, { left: v.l, top: v.t, width: v.w, height: v.h });
+  } catch (e) {}
+  let drag = null;
+  head.addEventListener("pointerdown", (e) => {
+    if (e.target.closest("input, label, button")) return;
+    const r = secWin.getBoundingClientRect();
+    drag = { dx: e.clientX - r.left, dy: e.clientY - r.top };
+    head.setPointerCapture(e.pointerId);
+  });
+  head.addEventListener("pointermove", (e) => {
+    if (!drag) return;
+    secWin.style.left = (e.clientX - drag.dx) + "px";
+    secWin.style.top = (e.clientY - drag.dy) + "px";
+    clamp();
+  });
+  head.addEventListener("pointerup", () => { if (drag) { drag = null; save(); } });
+  // redraw at the new size while resizing (and remember it)
+  let lastSize = "";
+  new ResizeObserver(() => {
+    const size = secWin.offsetWidth + "x" + secWin.offsetHeight;
+    if (size === lastSize || secWin.hidden) return;
+    lastSize = size;
+    secWin.style.width = secWin.offsetWidth + "px"; secWin.style.height = secWin.offsetHeight + "px";
+    drawSectionView(); save();
+  }).observe(secWin);
+  window.addEventListener("resize", clamp);
+})();
+const secFlip = document.getElementById("secFlip");
+secFlip.addEventListener("change", drawSectionView);
 document.getElementById("secClose").addEventListener("click", () => { secToggle.checked = false; drawSectionView(); });
 slider.addEventListener("input", () => { refreshAeroArrows(); drawSectionView(); });
 window.addEventListener("resize", drawSectionView);
@@ -2121,6 +2275,14 @@ if (window.matchMedia("(max-width: 640px)").matches) document.body.classList.add
 // --- hide the loading overlay once the scene is built ---
 const overlay = document.getElementById("overlay");
 
+// render on demand: only draw while something can change on screen (input,
+// a moving rotor, a fading gizmo) -- an idle view costs no GPU time
+let renderUntil = 0;
+function invalidate(ms = 500) { renderUntil = Math.max(renderUntil, performance.now() + ms); }
+invalidate(1500);   // first frames (and the loading overlay fade)
+["pointerdown", "pointermove", "pointerup", "wheel", "keydown", "input", "change", "click", "resize"]
+  .forEach(ev => window.addEventListener(ev, () => invalidate(), { capture: true, passive: true }));
+
 const fpsEl = document.getElementById("fps");
 let lastT = performance.now(), frames = 0;
 let rotorPaused = false;
@@ -2161,14 +2323,19 @@ function animate() {
   const nowF = performance.now(), dt = Math.min((nowF - lastFrame) / 1000, 0.1);
   lastFrame = nowF;
   if (!rotorPaused && turbineGroup.visible) {
-    // leading edge first (LE at +Y): positive about the rotor axis, which
-    // is clockwise seen from upwind; real time at the slider's rpm
-    const dA = opState.rpm * 2*Math.PI / 60 * dt;
+    // leading edge first: positive about the rotor axis (clockwise seen
+    // from upwind) when the LE is at +Y; real time at the slider's rpm
+    const dA = leSign() * opState.rpm * 2*Math.PI / 60 * dt;
     rotorArms.forEach(a => { a.rotation.z += dA; });
+  }
+  updateGizmo(dt);
+  const spinning = !rotorPaused && turbineGroup.visible;
+  if (!(spinning || navMode || gizmoHold > 0 || nowF < renderUntil)) {
+    fpsEl.textContent = "idle";
+    return;
   }
   syncClipPlane();
   syncTurbineCut();
-  updateGizmo(dt);
   renderer.render(scene, camera);
   frames++;
   if (frames === 1) overlay.classList.add("hidden"); // first frame drawn -> reveal

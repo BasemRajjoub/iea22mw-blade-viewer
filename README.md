@@ -26,9 +26,9 @@ https://github.com/user-attachments/assets/88ad2781-a8b6-405f-81f3-a04ad9e11a13
 - **Exaggeration slider** — scale ply thickness 1×–10× (real plies are thin relative to the blade).
 - **Wireframe** — overlay the mesh.
 - **Blade geometry** — switch pre-twist, prebend, presweep (zero for this blade) and the 4° hub precone on/off to see each one's effect.
-- **Rotor & pitch** — rotor speed and blade pitch (defaults: rated 7.06 rpm, fine pitch −4.0°); the rotor turns clockwise seen from upwind, leading edge first. **Pause** (or Space) freezes it so the arrows can be inspected.
-- **Wind & aero** — leading-edge velocity triangles (axial U(1−a), rotational Ωr, relative W) and quarter-chord forces (lift, drag, resultant, thrust and driving components) from the YAML airfoil polars, at five span stations plus the cut station.
-- **2D section window** — the section at the cut, seen from the tip, with the velocity triangle, the φ / β / α angles, the forces and their values.
+- **Rotor & pitch** — rotor speed and blade pitch (defaults: rated 7.06 rpm, fine pitch −4.0°); the rotor turns clockwise seen from upwind, leading edge first (a checkbox flips it to counter-clockwise, mirroring the blade). **Pause** (or Space) freezes it so the arrows can be inspected.
+- **Wind & aero** — leading-edge velocity triangles (axial U(1−a), rotational Ωr, relative W) and quarter-chord forces (lift, drag, resultant, thrust and driving components) from the YAML airfoil polars, at five span stations plus the cut station — or only at the cut, optionally with a value-label block.
+- **2D section window** — the section at the cut, seen from the tip, with the velocity triangle, the φ / β / α angles, the forces and their values. Drag it by its title bar, resize it from the corner, and flip it to put the suction side on top.
 - The side panel lists the exact, unexaggerated ply stack (thickness in mm + fiber angle) at the current cut station.
 
 The aerodynamics are quasi-steady 2D blade-element estimates with a user-set axial induction (default 1/3) — no BEM iteration, tip loss or 3D effects.
