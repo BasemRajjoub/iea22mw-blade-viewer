@@ -42,6 +42,45 @@
   body.panel-collapsed #panel { display:none; }
   body.panel-collapsed #panelToggle { display:block; }
 
+  /* about button + dialog */
+  #aboutBtn {
+    position:fixed; top:16px; right:16px; z-index:11;
+    height:38px; padding:0 14px; display:flex; align-items:center; gap:6px;
+    background:rgba(20,22,28,0.88); border:1px solid rgba(255,255,255,0.08);
+    border-radius:10px; color:#eaeaea; font:inherit; font-size:13px; cursor:pointer;
+    box-shadow:0 8px 24px rgba(0,0,0,0.4); backdrop-filter: blur(6px);
+  }
+  #aboutBtn:hover { border-color:rgba(255,255,255,0.22); }
+  #aboutDialog {
+    width:min(560px, calc(100vw - 32px)); max-height:calc(100vh - 48px); padding:0;
+    background:#171a21; color:#eaeaea; border:1px solid rgba(255,255,255,0.1);
+    border-radius:12px; box-shadow:0 24px 64px rgba(0,0,0,0.6);
+  }
+  #aboutDialog::backdrop { background:rgba(6,8,12,0.6); backdrop-filter: blur(3px); }
+  #aboutDialog .about-inner { padding:22px 24px 20px; font-size:13.5px; line-height:1.55; }
+  #aboutDialog header { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; }
+  #aboutDialog h2 { margin:0; font-size:18px; font-weight:600; color:#fff; }
+  #aboutDialog .byline { margin:4px 0 0; color:#9aa3af; font-size:13px; }
+  #aboutDialog h3 { margin:18px 0 6px; font-size:11px; font-weight:600; color:#9aa3af; text-transform:uppercase; letter-spacing:0.05em; }
+  #aboutDialog p { margin:0 0 8px; color:#c7ccd4; }
+  #aboutDialog ul { margin:0; padding-left:18px; color:#c7ccd4; }
+  #aboutDialog li { margin:3px 0; }
+  #aboutDialog a { color:#8fb4ff; text-decoration:none; }
+  #aboutDialog a:hover { text-decoration:underline; }
+  #aboutDialog cite { font-style:normal; display:block; font-size:12.5px; color:#aab2bf; border-left:2px solid #4C72B0; padding-left:10px; margin:6px 0 4px; }
+  #aboutClose { background:none; border:none; color:#9aa3af; font-size:18px; cursor:pointer; padding:0 2px; line-height:1; }
+  .about-links { display:flex; flex-wrap:wrap; gap:8px; margin-top:14px; }
+  .about-links a {
+    display:inline-flex; align-items:center; gap:7px; padding:7px 12px; border-radius:8px;
+    background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1);
+    color:#eaeaea !important; font-size:13px; text-decoration:none !important;
+  }
+  .about-links a:hover { border-color:rgba(255,255,255,0.25); background:rgba(255,255,255,0.08); }
+  .about-links a.primary { background:#4C72B0; border-color:#4C72B0; color:#fff !important; font-weight:600; }
+  .about-links a.primary:hover { background:#5a82c4; }
+  .about-links svg { width:15px; height:15px; fill:currentColor; flex:0 0 auto; }
+  #aboutDialog .fine { font-size:11.5px; color:#7d8693; margin-top:16px; }
+
   /* loading + error overlay */
   #overlay {
     position:fixed; inset:0; z-index:20; display:flex; flex-direction:column;
@@ -61,6 +100,8 @@
     #panel { width:min(78vw, 300px); top:12px; left:12px; padding:12px 13px; max-height:85vh; }
     #panelToggle { top:12px; left:12px; }
     #panel h1 { font-size:13px; }
+    #aboutBtn { top:12px; right:12px; padding:0 11px; }
+    #aboutDialog .about-inner { padding:18px 16px 16px; }
   }
 </style>
 </head>
@@ -108,6 +149,50 @@
   <div id="statLine"></div>
 </div>
 <div id="fps"></div>
+
+<button id="aboutBtn" aria-haspopup="dialog" aria-controls="aboutDialog">ⓘ About</button>
+
+<dialog id="aboutDialog" aria-labelledby="aboutTitle">
+  <div class="about-inner">
+    <header>
+      <div>
+        <h2 id="aboutTitle">IEA 22 MW RWT blade viewer</h2>
+        <p class="byline">Built by <b style="color:#fff">Basem Rajjoub</b></p>
+      </div>
+      <button id="aboutClose" title="Close" aria-label="Close">✕</button>
+    </header>
+
+    <div class="about-links">
+      <a class="primary" href="https://basemrajjoub.com" target="_blank" rel="noopener">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20Zm6.9 6h-2.95a15.7 15.7 0 0 0-1.38-3.56A8.03 8.03 0 0 1 18.9 8ZM12 4.04c.83 1.2 1.48 2.53 1.91 3.96h-3.82c.43-1.43 1.08-2.76 1.91-3.96ZM4.26 14a8.2 8.2 0 0 1 0-4h3.38a16.5 16.5 0 0 0 0 4H4.26Zm.84 2h2.95c.32 1.25.78 2.45 1.38 3.56A7.99 7.99 0 0 1 5.1 16Zm2.95-8H5.1a7.99 7.99 0 0 1 4.33-3.56A15.7 15.7 0 0 0 8.05 8ZM12 19.96A14.1 14.1 0 0 1 10.09 16h3.82A14.1 14.1 0 0 1 12 19.96ZM14.34 14H9.66a14.7 14.7 0 0 1 0-4h4.68a14.7 14.7 0 0 1 0 4Zm.25 5.56c.6-1.11 1.06-2.31 1.38-3.56h2.95a8.03 8.03 0 0 1-4.33 3.56ZM16.36 14a16.5 16.5 0 0 0 0-4h3.38a8.2 8.2 0 0 1 0 4h-3.38Z"/></svg>
+        basemrajjoub.com
+      </a>
+      <a href="https://github.com/BasemRajjoub" target="_blank" rel="noopener">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 .5a11.5 11.5 0 0 0-3.64 22.41c.58.1.79-.25.79-.56v-2c-3.2.7-3.87-1.37-3.87-1.37-.53-1.33-1.28-1.69-1.28-1.69-1.05-.71.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.55-.29-5.24-1.28-5.24-5.69 0-1.26.45-2.29 1.19-3.1-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.17 1.18a11 11 0 0 1 5.77 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.81 1.19 1.84 1.19 3.1 0 4.42-2.7 5.39-5.26 5.68.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.5 11.5 0 0 0 12 .5Z"/></svg>
+        GitHub
+      </a>
+      <a href="https://www.linkedin.com/in/rajjoub/" target="_blank" rel="noopener">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.45 20.45h-3.56v-5.57c0-1.33-.02-3.04-1.85-3.04-1.85 0-2.14 1.45-2.14 2.94v5.67H9.35V9h3.41v1.56h.05c.48-.9 1.64-1.85 3.37-1.85 3.6 0 4.27 2.37 4.27 5.46v6.28ZM5.34 7.43a2.06 2.06 0 1 1 0-4.13 2.06 2.06 0 0 1 0 4.13ZM7.12 20.45H3.56V9h3.56v11.45ZM22.22 0H1.77C.79 0 0 .77 0 1.73v20.54C0 23.23.79 24 1.77 24h20.45c.98 0 1.78-.77 1.78-1.73V1.73C24 .77 23.2 0 22.22 0Z"/></svg>
+        LinkedIn
+      </a>
+    </div>
+
+    <h3>What this is</h3>
+    <p>An interactive 3D look at the blade of the IEA Wind 22 MW offshore reference wind turbine, using its <b>real composite ply layup</b>. Chord, twist, prebend, blended airfoils, 12 shell layers and the shear webs are all read straight from the turbine's WindIO YAML definition. It's meant for checking geometry, so ply drops show up as hard steps.</p>
+
+    <h3>Reference turbine &amp; data</h3>
+    <p>Blade geometry and layup come from the <a href="https://github.com/IEAWindTask37/IEA-22-280-RWT" target="_blank" rel="noopener">IEA-22-280-RWT</a> repository (<code>IEA-22-280-RWT.yaml</code>, in <a href="https://github.com/IEAWindTask37/windIO" target="_blank" rel="noopener">WindIO</a> format), published by IEA Wind TCP with DTU Wind and NREL.</p>
+    <cite>F. Zahle, A. Barlas, K. Lønbæk, P. Bortolotti, D. Zalkind, L. Wang, C. Labuschagne, L. Sethuraman, G. Barter. <i>Definition of the IEA Wind 22-Megawatt Offshore Reference Wind Turbine.</i> DTU Wind Energy Report E-0243, Technical University of Denmark, 2024. <a href="https://doi.org/10.11581/DTU.00000317" target="_blank" rel="noopener">doi:10.11581/DTU.00000317</a></cite>
+
+    <h3>Credits</h3>
+    <ul>
+      <li>Rendering: <a href="https://threejs.org/" target="_blank" rel="noopener">three.js</a> r128 (MIT), including OrbitControls, GLTFLoader and DRACOLoader.</li>
+      <li>Scale models (Ferrari, Soldier) come from the <a href="https://github.com/mrdoob/three.js/tree/r128/examples/models/gltf" target="_blank" rel="noopener">three.js example assets</a>, under their original authors' licenses.</li>
+    </ul>
+
+    <p class="fine">Viewer code © 2026 Basem Rajjoub, <a href="https://github.com/BasemRajjoub/iea22mw-blade-viewer" target="_blank" rel="noopener">MIT licensed source</a>. This is an independent project, not affiliated with or endorsed by IEA Wind, DTU or NREL.</p>
+  </div>
+</dialog>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"
         onerror="window.__cdnFail=true"></script>
@@ -246,6 +331,12 @@ function sectionCurve(z) {
 const LAYERS = IEA22.layers; // stacking order OML -> inward, as given by the YAML
 let EXAG = 1.0;              // modest exaggeration (real stack is already up to ~12% of half-thickness)
 const ZERO_EPS = 1e-9;
+// adjacent plies share a surface (layer k's inner == layer k+1's outer), and a
+// ply tapering to t=0 collapses onto its neighbours -- coplanar faces of
+// different colours z-fight. Nudge each layer inward by a sub-mm amount so
+// touching surfaces never sit at identical depth (outer layer still wins
+// from outside, inner layer wins when looking from inside / at a cut).
+const LAYER_SEP = 2.5e-4; // m per layer index
 
 // The exact YAML-defined thickness: a hard rectangular on/off window
 // (s0 <= s <= s1), no cosmetic smoothing of any kind. Ply-drop edges will
@@ -283,6 +374,7 @@ function buildPlyShell(layerIdx) {
       let cumBefore = 0;
       for (let k = 0; k < layerIdx; k++) cumBefore += layerThicknessAt(LAYERS[k], s, z);
       const t = layerThicknessAt(layer, s, z);
+      cumBefore += layerIdx * LAYER_SEP;
       const cumAfter = cumBefore + t;
       tGrid[iz*N_S + is] = t;
 
@@ -344,6 +436,7 @@ function buildCapGeometry(layerIdx, zCut, epsSign) {
     const s = sGrid[is];
     let cumBefore = 0;
     for (let k = 0; k < layerIdx; k++) cumBefore += layerThicknessAt(LAYERS[k], s, zCut);
+    cumBefore += layerIdx * LAYER_SEP;
     const t = layerThicknessAt(layer, s, zCut);
     tVals[is] = t;
     if (t > ZERO_EPS) anyThickness = true;
@@ -434,7 +527,7 @@ function buildWebPly(webLayer) {
     // sandwich's center), not one skin's face -- standard convention for
     // where a shear web's reference surface sits relative to its skins.
     const centerShift = tTotal/2;
-    const cumBefore = tBefore - centerShift;
+    const cumBefore = tBefore - centerShift + idx*LAYER_SEP; // see LAYER_SEP
     const cumAfter = cumBefore + tThis;
     tGrid[iz*2] = tThis; tGrid[iz*2+1] = tThis;
 
@@ -492,7 +585,7 @@ function buildWebCapGeometry(webLayer, zCut, epsSign) {
     tTotal += tk;
   }
   const centerShift = tTotal/2;
-  const cumBefore = tBefore - centerShift;
+  const cumBefore = tBefore - centerShift + idx*LAYER_SEP;
   const cumAfter = cumBefore + tThis;
   const anyThickness = tThis > ZERO_EPS;
   const x = sec.X + epsSign*0.05;
@@ -595,7 +688,7 @@ scene.background = new THREE.Color(0x12151a);
 const camera = new THREE.PerspectiveCamera(42, window.innerWidth/window.innerHeight, 0.1, 2000);
 camera.position.set(150, 55, 85);
 
-const renderer = new THREE.WebGLRenderer({ antialias: true });
+const renderer = new THREE.WebGLRenderer({ antialias: true, logarithmicDepthBuffer: true }); // mm-thick plies on a 138 m blade need far more depth precision than a linear buffer gives
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2)); // clamp: raw DPR tanks perf on retina/mobile
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.localClippingEnabled = true;
@@ -1259,6 +1352,12 @@ const panelCloseBtn = document.getElementById("panelClose");
 const panelToggleBtn = document.getElementById("panelToggle");
 panelCloseBtn.addEventListener("click", () => document.body.classList.add("panel-collapsed"));
 panelToggleBtn.addEventListener("click", () => document.body.classList.remove("panel-collapsed"));
+
+const aboutDialog = document.getElementById("aboutDialog");
+document.getElementById("aboutBtn").addEventListener("click", () => aboutDialog.showModal());
+document.getElementById("aboutClose").addEventListener("click", () => aboutDialog.close());
+// click on the backdrop (outside the dialog box) closes it; Esc is handled natively
+aboutDialog.addEventListener("click", (e) => { if (e.target === aboutDialog) aboutDialog.close(); });
 // start collapsed on narrow screens so the blade is visible first
 if (window.matchMedia("(max-width: 640px)").matches) document.body.classList.add("panel-collapsed");
 
