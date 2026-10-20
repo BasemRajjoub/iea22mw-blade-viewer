@@ -87,6 +87,9 @@
   <label class="row"><input id="carToggle" type="checkbox" /> <span>Car (4.5 m) next to blade</span></label>
   <label class="row"><input id="humanToggle" type="checkbox" /> <span>Human (1.75 m) next to root</span></label>
   <label class="row"><input id="fieldToggle" type="checkbox" /> <span>Soccer field (105 × 68 m)</span></label>
+  <label class="row"><input id="turbineToggle" type="checkbox" /> <span>Full turbine (3 blades, hub, tower)</span></label>
+  <label class="row"><input id="spinToggle" type="checkbox" checked /> <span>Rotate at rated speed (7.06 rpm)</span></label>
+  <label class="row"><input id="eiffelToggle" type="checkbox" /> <span>Eiffel Tower (330 m)</span></label>
   <div id="refStatus" style="font-size:11px; color:#8891a0;"></div>
   <hr/>
   <label class="row"><input id="wireToggle" type="checkbox" /> <span>Show mesh (wireframe)</span></label>
@@ -1079,6 +1082,168 @@ const fieldGroup = (() => {
 })();
 document.getElementById("fieldToggle").addEventListener("change", (e) => { fieldGroup.visible = e.target.checked; });
 
+// full turbine: 3 plain outer-surface blades on a hub + tower, for size only.
+// Rotor 283 m, hub height 170 m (IEA 22 MW RWT). Tilt/precone ignored.
+const rotorArms = [];
+const RATED_RPM = 7.06;   // IEA 22 MW RWT rated rotor speed
+const HUB_RADIUS = 3.7, HUB_HEIGHT = 170, OVERHANG = 12;
+const turbineGroup = (() => {
+  // outer mould line of the blade (no plies), built from the cached sections
+  const pos = new Float32Array(N_Z * N_S * 3), idx = [];
+  for (let iz = 0; iz < N_Z; iz++) for (let is = 0; is < N_S; is++) {
+    const k = (iz*N_S + is) * 3, sec = sectionCache[iz];
+    pos[k] = sec.X; pos[k+1] = sec.Y[is]; pos[k+2] = sec.Z[is];
+  }
+  for (let iz = 0; iz < N_Z-1; iz++) for (let is = 0; is < N_S; is++) {
+    const is2 = (is+1) % N_S;
+    const a = iz*N_S+is, b = iz*N_S+is2, c = (iz+1)*N_S+is, d = (iz+1)*N_S+is2;
+    idx.push(a,b,c, b,d,c);
+  }
+  const bg = new THREE.BufferGeometry();
+  bg.setAttribute("position", new THREE.BufferAttribute(pos, 3));
+  bg.setIndex(idx); bg.computeVertexNormals();
+  const bladeMat = new THREE.MeshStandardMaterial({ color: 0xe6eaee, roughness: 0.5, metalness: 0.05, side: THREE.DoubleSide });
+  const towerMat = new THREE.MeshStandardMaterial({ color: 0xcfd4da, roughness: 0.6, metalness: 0.1 });
+
+  // local frame: rotor axis = Z, upwind = -Z (blade prebend points to -Z)
+  const hub = new THREE.Group();
+  hub.position.set(0, HUB_HEIGHT, 0);
+  for (let i = 0; i < 3; i++) {
+    const arm = new THREE.Group();
+    arm.rotation.z = Math.PI/2 + i * 2*Math.PI/3;
+    const blade = new THREE.Mesh(bg, bladeMat);
+    blade.position.x = HUB_RADIUS;
+    arm.add(blade); hub.add(arm); rotorArms.push(arm);
+  }
+  const spinner = new THREE.Mesh(new THREE.SphereGeometry(HUB_RADIUS, 32, 16), towerMat);
+  spinner.scale.z = 1.5; spinner.position.z = -1.5;
+  const nacelle = new THREE.Mesh(new THREE.BoxGeometry(8, 8, OVERHANG + 14), towerMat);
+  nacelle.position.set(0, -1, (OVERHANG + 14)/2 - 4);
+  hub.add(spinner, nacelle);
+
+  const tower = new THREE.Mesh(new THREE.CylinderGeometry(3.3, 5, HUB_HEIGHT - 6, 40), towerMat);
+  tower.position.set(0, (HUB_HEIGHT - 6)/2, OVERHANG - 2);
+
+  const grp = new THREE.Group();
+  grp.add(hub, tower);
+  const outer = new THREE.Group();     // flipped so the upwind (prebend) side faces +Z / the camera
+  outer.add(grp); outer.rotation.y = Math.PI;
+  outer.position.set(BLADE_LENGTH * 0.5, GROUND_Y, -200);
+  outer.visible = false;
+  scene.add(outer);
+  return outer;
+})();
+document.getElementById("turbineToggle").addEventListener("change", (e) => {
+  turbineGroup.visible = e.target.checked;
+  if (e.target.checked) {   // frame the whole rotor
+    controls.target.set(BLADE_LENGTH * 0.5, GROUND_Y + HUB_HEIGHT * 0.5, -200);
+    camera.position.set(BLADE_LENGTH * 0.5 + 250, GROUND_Y + 120, 330);
+    controls.update();
+  }
+});
+
+// Eiffel Tower: procedural wrought-iron lattice (324 m + antenna = 330 m,
+// 125 m square base) with the three platforms, beside the turbine.
+const eiffelGroup = (() => {
+  const prof = [[0,62.5],[57,40],[115,30],[190,15],[276,6],[300,3],[324,1]]; // [height, half-width]
+  const hw = h => lerp1D(h, prof.map(p => p[0]), prof.map(p => p[1]));
+  const levels = [];
+  for (let h = 0; h < 276; h += 12) levels.push(h);
+  for (let h = 276; h < 324; h += 8) levels.push(h);
+  levels.push(324);
+  const v = [];
+  const corner = (h, i) => { const w = hw(h), sx = (i === 0 || i === 3) ? -1 : 1, sz = i < 2 ? -1 : 1; return [sx*w, h, sz*w]; };
+  const seg = (a, b) => v.push(...a, ...b);
+  for (let l = 0; l < levels.length; l++) {
+    for (let i = 0; i < 4; i++) {
+      const a = corner(levels[l], i), b = corner(levels[l], (i+1) % 4);
+      seg(a, b);                                            // horizontal ring
+      if (l < levels.length - 1) {
+        const h2 = levels[l+1];
+        const a2 = corner(h2, i), b2 = corner(h2, (i+1) % 4);
+        seg(a, a2);                                         // leg edge
+        seg(a, b2); seg(b, a2);                             // X bracing
+      }
+    }
+  }
+  seg([0,324,0], [0,330,0]);                                // antenna
+  const geom = new THREE.BufferGeometry();
+  geom.setAttribute("position", new THREE.Float32BufferAttribute(v, 3));
+  const lines = new THREE.LineSegments(geom, new THREE.LineBasicMaterial({ color: 0xb08a5e }));
+  const grp = new THREE.Group();
+  grp.add(lines);
+  const slabMat = new THREE.MeshStandardMaterial({ color: 0x8a6a4a, roughness: 0.7 });
+  [[57,6],[115,4],[276,3]].forEach(([h, t]) => {              // 1st, 2nd, 3rd floor
+    const w = hw(h) * 2 + 4;
+    const slab = new THREE.Mesh(new THREE.BoxGeometry(w, t, w), slabMat);
+    slab.position.y = h; grp.add(slab);
+  });
+  grp.position.set(BLADE_LENGTH * 0.5 - 235, GROUND_Y, -200);
+  grp.visible = false;
+  scene.add(grp);
+  return grp;
+})();
+document.getElementById("eiffelToggle").addEventListener("change", (e) => {
+  eiffelGroup.visible = e.target.checked;
+  if (e.target.checked) {
+    controls.target.set(eiffelGroup.position.x, GROUND_Y + 150, -200);
+    camera.position.set(eiffelGroup.position.x + 250, GROUND_Y + 120, 330);
+    controls.update();
+  }
+});
+
+// =====================================================================
+// cursor-centred navigation: orbit pivots on the surface point under the
+// cursor at pointer-down, wheel zooms toward the cursor, pan is free-form
+// (screen-space) with right-drag / shift-drag.
+// =====================================================================
+controls.screenSpacePanning = true;
+controls.panSpeed = 1.2;
+controls.minDistance = 0.3;
+controls.maxDistance = 1500;
+const _ray = new THREE.Raycaster();
+const _ndc = new THREE.Vector2();
+const _groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), -GROUND_Y);
+function pickPoint(clientX, clientY) {
+  const r = renderer.domElement.getBoundingClientRect();
+  _ndc.set(((clientX - r.left) / r.width) * 2 - 1, -((clientY - r.top) / r.height) * 2 + 1);
+  _ray.setFromCamera(_ndc, camera);
+  const meshes = [];
+  (function walk(o) {
+    if (!o.visible) return;
+    if (o.isMesh) meshes.push(o);
+    o.children.forEach(walk);
+  })(scene);
+  const hit = _ray.intersectObjects(meshes, false)[0];
+  if (hit) return hit.point.clone();
+  const p = new THREE.Vector3();
+  if (_ray.ray.intersectPlane(_groundPlane, p) && p.distanceTo(camera.position) < 1500) return p;
+  return null;
+}
+container.addEventListener("pointerdown", (e) => {
+  if (e.pointerType === "touch" && !e.isPrimary) return;
+  const p = pickPoint(e.clientX, e.clientY);
+  if (p) controls.target.copy(p);
+}, true);
+let _lastPick = { x: -1, y: -1, t: 0, p: null };
+container.addEventListener("wheel", (e) => {
+  e.preventDefault(); e.stopPropagation();
+  const now = performance.now();
+  if (!(_lastPick.p && Math.abs(e.clientX - _lastPick.x) < 3 && Math.abs(e.clientY - _lastPick.y) < 3 && now - _lastPick.t < 400)) {
+    _lastPick = { x: e.clientX, y: e.clientY, t: now, p: pickPoint(e.clientX, e.clientY) };
+  }
+  _lastPick.t = now;
+  const p = _lastPick.p;
+  if (!p) return;
+  const dy = e.deltaMode === 1 ? e.deltaY * 33 : e.deltaY;
+  let k = Math.exp(dy * 0.0012);
+  const dist = camera.position.distanceTo(controls.target) * k;
+  if (dist < controls.minDistance || dist > controls.maxDistance) return;
+  camera.position.sub(p).multiplyScalar(k).add(p);
+  controls.target.sub(p).multiplyScalar(k).add(p);
+  controls.update();
+}, { capture: true, passive: false });
+
 // =====================================================================
 // render loop
 // =====================================================================
@@ -1102,8 +1267,17 @@ const overlay = document.getElementById("overlay");
 
 const fpsEl = document.getElementById("fps");
 let lastT = performance.now(), frames = 0;
+const spinToggle = document.getElementById("spinToggle");
+let lastFrame = performance.now();
 function animate() {
   requestAnimationFrame(animate);
+  const nowF = performance.now(), dt = Math.min((nowF - lastFrame) / 1000, 0.1);
+  lastFrame = nowF;
+  if (spinToggle.checked && turbineGroup.visible) {
+    // clockwise seen from upwind; real time at rated rpm
+    const dA = RATED_RPM * 2*Math.PI / 60 * dt;
+    rotorArms.forEach(a => { a.rotation.z += dA; });
+  }
   controls.update();
   renderer.render(scene, camera);
   frames++;
