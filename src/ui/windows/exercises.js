@@ -56,7 +56,7 @@ const EXERCISES = {
       "Q2: station r = 11.09 m (root)": station(11.09),
       "Q2: station r = 73.10 m (mid-span)": station(73.10),
       "Q2: station r = 121.33 m (outboard)": station(121.33),
-      "Q4: 90 % span, lift per metre": () => { apply({ cut: 0.9, rpm: 7.061, wind: 11, revealStep: 3 }, "section2d"); },
+      "Q4: 90 % span, lift per metre": () => { apply({ cut: 0.9, rpm: 6.773, wind: 11, pitch: 0, followController: false, revealStep: 3 }, "section2d"); },
       "Q5: chord-normal and chord forces": () => { apply({ showChordForces: true, revealStep: 5 }, "section2d"); },
     },
   },
@@ -70,7 +70,7 @@ const EXERCISES = {
       "Q2: station r = 45.54 m (330blend)": station(45.54),
       "Q2: station r = 139.24 m (211)": station(139.24),
       "Q2: thickness along the span": () => showQuantity("Relative thickness t/c"),
-      "Q3: rotor at 11 m/s, 7.06 rpm": () => { apply({ wind: 11, rpm: 7.061, pitch: -4.011, followController: false, turbine: true }); showPlot("Power curve"); },
+      "Q3: rated rotor speed 7.06 rpm at 11.47 m/s": () => { apply({ wind: 11.47, followController: true, turbine: true }); showPlot("Power curve"); },
     },
   },
   "4 · Betz theory": {
