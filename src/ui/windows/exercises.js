@@ -46,6 +46,7 @@ const EXERCISES = {
       "Q6: shear over grass (z0 = 0.03 m)": () => { apply({ shearModel: "log", z0: 0.03, wind: 8, showShear3D: true }); showView("Wind shear profile"); },
       "Q6: shear over forest (z0 = 1.0 m)": () => { apply({ shearModel: "log", z0: 1.0, wind: 8, showShear3D: true }); showView("Wind shear profile"); },
       "Q8: Rayleigh with ū = 10 m/s": () => { apply({ meanWind: 10, weibullK: 2, powerCurveSource: "IEA 22 MW (BEM)" }); showView("Wind distribution & AEP"); },
+      "Thrust vs wind speed (peaks near rated)": () => { apply({ turbine: true, wind: 10, followController: true }); showPlot("Thrust"); },
     },
   },
   "2 · Aerodynamics I": {
@@ -78,8 +79,8 @@ const EXERCISES = {
     presets: {
       "Q1: Betz stream tube (a = 1/3)": () => apply({ inductionModel: "fixed", induction: 1/3, showStreamTube: true }, "site"),
       "Q2: build the section sketch step by step": () => apply({ revealStep: 1, showChordForces: false }, "section2d"),
+      "Q3: section at r = 90 m (λ 9.15, α 6°)": () => { apply({ designTSR: 9.15, designCl: +tipBest.cl.toFixed(2), designAlpha: +tipBest.alpha.toFixed(1), cut: zAt(90) }); showDesign("Twist"); },
       "Q4: Betz optimum blade at λ = 9.15": () => { apply({ designTSR: 9.15, designCl: +tipBest.cl.toFixed(2), designAlpha: +tipBest.alpha.toFixed(1), ghostBlade: "betz" }); showDesign("Chord"); },
-      "Q4: exercise inputs (λ 7, Cl 1.5, α 5°)": () => { apply({ designTSR: 7, designCl: 1.5, designAlpha: 5, ghostBlade: "betz" }); showDesign("Chord"); },
       "Q4: slow rotor λ = 3": () => { apply({ designTSR: 3, ghostBlade: "betz" }); showDesign("Chord"); },
     },
   },
@@ -91,13 +92,17 @@ const EXERCISES = {
       "Q2: Schmitz vs Betz vs IEA 22 (twist)": () => { apply({ ghostBlade: "schmitz" }); showDesign("Twist"); },
       "Q1: wake rotation in the section (BEM)": () => apply({ inductionModel: "bem", revealStep: 1 }, "section2d"),
       "Q3: a and a′ along the span (BEM)": () => { apply({ inductionModel: "bem", followController: true }); showQuantity("Induction a, a′"); },
+      "Q3: Schmitz a, a′ at r = 45 / 90 / 135 m": () => { apply({ designTSR: 9.15, designCl: +tipBest.cl.toFixed(2), designAlpha: +tipBest.alpha.toFixed(1), ghostBlade: "schmitz" }); showDesign("Chord"); const w = getWindow("design"); if (!w.showDetails) w.el.querySelector(".win-details").click(); },
     },
   },
   "6 · BEM theory": {
     goal: "Blade-element momentum: iterate a and a′ at a station, losses, and spanwise loads to rotor thrust and power.",
     formulas: "tan φ = (1−a)U/((1+a′)Ωr) · α = φ − θ · C_t = C_l cosφ + C_d sinφ · C_q = C_l sinφ − C_d cosφ · a = 1/(4F sin²φ/(σC_t)+1) · a′ = 1/(4F sinφ cosφ/(σC_q)−1)",
     presets: {
-      "Q2: BEM iteration at the cut (table)": () => { apply({ inductionModel: "bem", cut: 0.5 }, "aero", "section2d"); const w = getWindow("aero"); if (!w.showDetails) w.el.querySelector(".win-details").click(); },
+      "Q2: BEM station r = 73.10 m at 10 m/s": () => {
+        apply({ inductionModel: "bem", cut: zAt(73.10), wind: 10, followController: true }, "aero", "section2d");
+        const w = getWindow("aero"); if (!w.showDetails) w.el.querySelector(".win-details").click();
+      },
       "BEM vs fixed a = 1/3": () => { apply({ inductionModel: "fixed", induction: 1/3 }); showQuantity("Aero loads"); },
       "BEM (solved)": () => { apply({ inductionModel: "bem" }); showQuantity("Aero loads"); },
       "Without tip loss": () => { apply({ inductionModel: "bem", tipLoss: false }); showQuantity("Aero loads"); },
@@ -132,14 +137,14 @@ const EXERCISES = {
     goal: "Hub-height wind, annual energy, capacity factor, full-load hours and the levelised cost of energy.",
     formulas: "u(z) log law · E = Σ P·f·Δu·8760 · CF = E/(P·8760) · CRF = r(1+r)ⁿ/((1+r)ⁿ−1) · LCOE = (CAPEX·CRF + OPEX)/E",
     presets: {
-      "IEA 22 MW at ū = 10 m/s (AEP, CF)": () => { apply({ powerCurveSource: "IEA 22 MW (BEM)", meanWind: 10, weibullK: 2 }); showView("Wind distribution & AEP"); },
-      "Exercise: V236 at 150 m (ū = 11.25)": () => { apply({ powerCurveSource: "Vestas V236-15 MW (Ex 9)", meanWind: 11.25, weibullK: 2 }); showView("Wind distribution & AEP"); },
-      "Exercise: V236 at 120 m (ū = 11.07)": () => { apply({ powerCurveSource: "Vestas V236-15 MW (Ex 9)", meanWind: 11.07, weibullK: 2 }); showView("Wind distribution & AEP"); },
-      "Exercise costs (3000 €/kW, 30 yr, r = 6 %)": () => {
-        apply({ powerCurveSource: "Vestas V236-15 MW (Ex 9)", meanWind: 11.25, weibullK: 2, capex: 3000, opexFixed: 90, opexVar: 0.02, years: 30, rate: 0.06, price: 0.10 });
+      "Q2: hub height 170 m (ū = 11.36 m/s)": () => { apply({ powerCurveSource: "IEA 22 MW (BEM)", meanWind: 11.36, weibullK: 2 }); showView("Wind distribution & AEP"); },
+      "Q3: lower tower 150 m (ū = 11.25 m/s)": () => { apply({ powerCurveSource: "IEA 22 MW (BEM)", meanWind: 11.25, weibullK: 2 }); showView("Wind distribution & AEP"); },
+      "Q4: costs (3000 €/kW, 25 yr, r = 6 %)": () => {
+        apply({ powerCurveSource: "IEA 22 MW (BEM)", meanWind: 11.36, weibullK: 2, capex: 3000, opexFixed: 90, opexVar: 0.02, years: 25, rate: 0.06, price: 0.10 });
         showView("Cost of energy (LCOE)");
       },
-      "Hub height: shear from 10 m (z0 = 0.0002)": () => { apply({ shearModel: "log", z0: 0.0002 }); showView("Wind shear profile"); },
+      "Hub-height wind from u10 = 9 m/s (z0 = 0.0002)": () => { apply({ shearModel: "log", z0: 0.0002, wind: 11.36 }); showView("Wind shear profile"); },
+      "Comparison: Vestas V236-15 MW at 150 m": () => { apply({ powerCurveSource: "Vestas V236-15 MW (Ex 9)", meanWind: 11.25, weibullK: 2 }); showView("Wind distribution & AEP"); },
     },
   },
 };
@@ -156,8 +161,8 @@ const folders = Object.entries(EXERCISES).map(([name, ex]) => {
 gui.add({ reset: () => Object.entries(defaults).forEach(([k, v]) => set(k, v)) }, "reset").name("Reset all settings");
 const formulas = note(win.details, "");
 note(win.details, "Presets only set values and open windows; every number comes from the same models as the rest of the viewer " +
-  "(IEA 22 MW geometry and polars, BEM, the controller schedule). Exercises 4–9 use other turbines on the sheets " +
-  "(NREL 5MW, Vestas V236); here the same methods are applied to the IEA 22 MW blade, except exercise 9's V236 power curve.");
+  "(IEA 22 MW geometry and polars, BEM, the controller schedule) — the same values as the exercise sheets' reference " +
+  "(figures/iea22/iea22_reference.py). Sheet 6 iterates with a constant F = 0.98; the viewer's BEM uses the full Prandtl loss, so its a, a′ differ slightly.");
 
 function showExercise() {
   const ex = EXERCISES[view.exercise];

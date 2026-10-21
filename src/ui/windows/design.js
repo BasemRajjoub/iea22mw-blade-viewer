@@ -74,14 +74,16 @@ function redraw() {
     `Schmitz φ ${s.phi.toFixed(2)}°, θ ${s.twist.toFixed(2)}°, c ${s.chord.toFixed(2)} m · ` +
     `real θ ${field(IEA22.twistDeg, z).toFixed(2)}°, c ${field(IEA22.chord, z).toFixed(2)} m`;
   if (win.showDetails) {
-    const rows = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0].map(f => f * R);
+    const rows = [15, 30, 45, 60, 75, 90, 105, 120, 135, 142];   // the exercise sheets' radii
     table.innerHTML = plotTable({
       series: [
         { label: "Betz c", x: rows, y: rows.map(rr => betzSection(rr, p).chord) },
         { label: "Betz θ", x: rows, y: rows.map(rr => betzSection(rr, p).twist) },
         { label: "Schmitz c", x: rows, y: rows.map(rr => schmitzSection(rr, p).chord) },
         { label: "Schmitz θ", x: rows, y: rows.map(rr => schmitzSection(rr, p).twist) },
-      ], xLabel: "r [m]", fmtX: v => v.toFixed(1), fmtY: v => v.toFixed(2),
+        { label: "Schmitz a", x: rows, y: rows.map(rr => schmitzSection(rr, p).a) },
+        { label: "Schmitz a′", x: rows, y: rows.map(rr => schmitzSection(rr, p).ap) },
+      ], xLabel: "r [m]", fmtX: v => v.toFixed(0), fmtY: v => (Math.abs(v) < 1 ? v.toFixed(4) : v.toFixed(2)),
     }, 12);
   }
 }
