@@ -1,0 +1,20 @@
+{
+  "name": "iea22mw-blade-viewer",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Interactive 3D viewer of the IEA 22 MW reference wind turbine blade's real composite ply layup",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "three": "0.128.0"
+  },
+  "devDependencies": {
+    "vite": "5.4.21",
+    "vite-plugin-singlefile": "2.2.1"
+  },
+  "license": "MIT"
+}

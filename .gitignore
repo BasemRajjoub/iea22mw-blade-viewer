@@ -1,2 +1,4 @@
 video.webm
 *.webm
+node_modules/
+dist/

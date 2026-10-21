@@ -17,6 +17,8 @@ Ideas and known issues for the IEA 22 MW blade viewer, roughly in order of value
 - [ ] **Repo link** — the IEA repository moved to `github.com/IEAWindSystems/IEA-22-280-RWT`; the About dialog and README still use the old `IEAWindTask37` URL (it redirects).
 - [ ] **Touch navigation untested** — one-finger orbit and two-finger pan/pinch have only been checked with mouse events.
 - [ ] **Real-GPU check** — the depth-bias z-fighting fix was tuned in a software renderer (SwiftShader); confirm on real hardware.
+- [ ] **Blade JSON exporter** — `src/data/iea22.json` (resampled airfoils, blend table, layup grids) was exported by a tool that isn't in the repo; add it to `scripts/` so the blade data can be regenerated from the YAML like `aero.json`.
+- [ ] **Gizmo left on screen after a Ctrl-roll** — render-on-demand stops drawing while the gizmo is still half-faded.
 - [ ] **Presweep** — the toggle is disabled because this blade has no presweep (reference axis y = 0); it would only matter for other blades.
 
 ## Notes

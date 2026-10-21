@@ -2,7 +2,7 @@
 
 Interactive 3D viewer of the [IEA 22 MW Reference Wind Turbine](https://github.com/IEAWindTask37/IEA-22-280-RWT) blade, showing its **real composite ply layup** — actual chord, twist, prebend, blended airfoils, and the 12 shell layers + 3 shear webs straight from the WindIO YAML.
 
-**[▶ Live demo](https://basemrajjoub.github.io/iea22mw-blade-viewer/)** · single self-contained `index.html`, no build step.
+**[▶ Live demo](https://basemrajjoub.github.io/iea22mw-blade-viewer/)** · builds to a single self-contained `index.html` that also works offline from disk.
 
 
 
@@ -16,7 +16,8 @@ https://github.com/user-attachments/assets/88ad2781-a8b6-405f-81f3-a04ad9e11a13
 ## Run it
 
 - **Online:** open the live demo link.
-- **Local:** open `index.html` in any modern browser (needs internet on first load — three.js is pulled from a CDN).
+- **Standalone file:** run `npm install && npm run build`, then open `dist/index.html` in any modern browser — everything (three.js, data, styles) is inlined, so it works offline and can be shared as one file.
+- **Develop:** `npm run dev` starts a live-reloading dev server.
 
 ## Controls
 
@@ -35,13 +36,14 @@ The aerodynamics are quasi-steady 2D blade-element estimates with a user-set axi
 
 ## How it works
 
-`index.html` embeds the blade definition as JSON (exported from the WindIO YAML) and builds every ply as an offset shell in [three.js](https://threejs.org/). Ply-drop edges render as genuine hard steps — this is a geometry-verification view, not a beautified render.
+The source is plain JavaScript ES modules under `src/` (geometry, scene, aero, UI, navigation), with the blade definition and airfoil polars as JSON in `src/data/` (extracted from the WindIO YAML; `scripts/extract_yaml.py` regenerates the polars). Every ply is built as an offset shell in [three.js](https://threejs.org/); ply-drop edges render as genuine hard steps — this is a geometry-verification view, not a beautified render. [Vite](https://vitejs.dev/) with `vite-plugin-singlefile` bundles it all into one minified HTML file. See [CLAUDE.md](CLAUDE.md) for the module map and conventions.
 
 ## Deploy to GitHub Pages
 
-1. Push this repo to GitHub.
-2. **Settings → Pages → Build from a branch → `main` / root.**
-3. Open `https://<user>.github.io/<repo>/`.
+The workflow in `.github/workflows/deploy.yml` builds and publishes on every push to `main`:
+
+1. **Settings → Pages → Source: GitHub Actions.**
+2. Push to `main`, then open `https://<user>.github.io/<repo>/`.
 
 ## License
 
