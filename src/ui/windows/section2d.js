@@ -1,7 +1,7 @@
 import { drawSection } from "../section-plot.js";
-import { on } from "../../state.js";
+import { AERO_KEYS, on } from "../../state.js";
 import { createWindow } from "../window-manager.js";
-import { bind, panel } from "../controls.js";
+import { bind, panel, batched } from "../controls.js";
 
 // 2D section: the blade section at the cut with the velocity triangle and
 // forces; Details adds the numbers. Wheel zooms toward the cursor, drag pans,
@@ -20,6 +20,8 @@ const gui = panel(win.main);
 bind(gui, "suctionUp").name("Suction side up");
 bind(gui, "cut", 0.02, 1, 0.001).decimals(3).name("Span position z");
 bind(gui, "pitch", -5, 90, 0.1).decimals(1).name("Blade pitch (°)");
+bind(gui, "revealStep", 1, 5, 1).name("Build-up step (1–5)");
+bind(gui, "showChordForces").name("Chord-normal / chord forces");
 const ex = gui.addFolder("Arrow exaggeration");
 bind(ex, "velScale", 1, 10, 0.1).decimals(1).name("Velocity triangle ×");
 bind(ex, "forceScale", 0.2, 10, 0.1).decimals(1).name("All forces ×");
@@ -31,6 +33,7 @@ win.details.appendChild(info);
 // zoom / pan (css px of the canvas); not persisted -- double-click resets
 const view = { zoom: 1, tx: 0, ty: 0 };
 const redraw = () => { if (win.isOpen()) drawSection(canvas, info, view); };
+const redrawSoon = batched(redraw);
 canvas.addEventListener("wheel", (e) => {
   e.preventDefault();
   const r = canvas.getBoundingClientRect(), cx = e.clientX - r.left, cy = e.clientY - r.top;
@@ -61,5 +64,4 @@ canvas.addEventListener("dblclick", () => { Object.assign(view, { zoom: 1, tx: 0
 
 win.onShow(redraw);
 win.onDetails(redraw);
-on(["cut", "suctionUp", "velScale", "forceScale", "smallForceScale", "rpm", "pitch", "wind", "induction",
-    "clockwise", "twist", "prebend", "sweep", "precone"], redraw);
+on(["cut", "suctionUp", "velScale", "forceScale", "smallForceScale", "showChordForces", "revealStep", ...AERO_KEYS], redrawSoon);

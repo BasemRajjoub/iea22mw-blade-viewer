@@ -7,7 +7,7 @@ import { bind, button, panel, readout } from "../controls.js";
 // Section cut: where the blade is cut, ply thickness exaggeration, and
 // (Details) the real ply stack at the cut plus the t/c sanity check.
 
-const win = createWindow({ id: "cut", title: "Section cut", icon: "✂", width: 300, details: true, open: true });
+const win = createWindow({ id: "cut", title: "Section cut", icon: "✂", width: 300, details: true });
 
 const gui = panel(win.main);
 bind(gui, "cut", 0.02, 1, 0.001).decimals(3).name("Span position z");

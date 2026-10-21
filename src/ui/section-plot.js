@@ -121,7 +121,8 @@ function drawSection(secCanvas, secInfo, view = { zoom: 1, tx: 0, ty: 0 }) {
   // velocity triangle ending at the LE (screen: x = -Y, y = +Z)
   const sv = 0.45 * W / V_REF * state.velScale;        // px per m/s (fixed, × slider)
   const S0 = [LE[0] - a.ut*sv, LE[1] - a.ua*sv];
-  arrow2d(S0[0], S0[1], S0[0] + a.ut*sv, S0[1], AERO_COLORS.rot, "Ωr", false, -1);
+  const step = state.revealStep;   // build-up: 1 velocities, 2 angles, 3 L & D, 4 resultant, 5 thrust & driving
+  arrow2d(S0[0], S0[1], S0[0] + a.ut*sv, S0[1], AERO_COLORS.rot, Math.abs(a.ap) > 1e-4 ? "Ωr(1+a′)" : "Ωr", false, -1);
   arrow2d(LE[0], S0[1], LE[0], LE[1], AERO_COLORS.axial, "U(1−a)", false, -1);
   arrow2d(S0[0], S0[1], LE[0], LE[1], AERO_COLORS.rel, "W", false, 1);
 
@@ -134,9 +135,11 @@ function drawSection(secCanvas, secInfo, view = { zoom: 1, tx: 0, ty: 0 }) {
     text(label, LE[0] + Math.cos(m)*(r + 9), LE[1] + Math.sin(m)*(r + 9) + 4*vy, true);
   };
   const rad = d => d * Math.PI/180;
-  arc(34, 0, rad(a.beta), "#c7ccd4", "β");
-  arc(52, rad(a.beta), rad(a.phi), "#ffd54f", "α");
-  arc(70, 0, rad(a.phi), "#ffffff", "φ");
+  if (step >= 2) {
+    arc(34, 0, rad(a.beta), "#c7ccd4", "β");
+    arc(52, rad(a.beta), rad(a.phi), "#ffd54f", "α");
+    arc(70, 0, rad(a.phi), "#ffffff", "φ");
+  }
 
   // forces at the quarter chord
   const QC = P(qcY, qcZ);
@@ -145,15 +148,28 @@ function drawSection(secCanvas, secInfo, view = { zoom: 1, tx: 0, ty: 0 }) {
   const Ry = a.L*a.dirL[0] + a.D*a.dirD[0], Rz = a.L*a.dirL[1] + a.D*a.dirD[1], Rp = F(Ry, Rz);
   const kL = 1, kFn = 1, kD = state.smallForceScale, kFt = state.smallForceScale;
   const tag = (name, k) => k !== 1 ? `${name} ×${+k.toFixed(1)}` : name;
-  arrow2d(QC[0], QC[1], ...F(0, a.Fn, kFn), AERO_COLORS.thrust, tag("Fn", kFn), true, -1);
-  arrow2d(QC[0], QC[1], ...F(a.Ft, 0, kFt), AERO_COLORS.torque, tag("Ft", kFt), true, 1);
-  // projections of R onto the axes (true scale, so they meet the unmagnified components)
-  ctx.strokeStyle = "rgba(255,255,255,0.25)"; ctx.setLineDash([2*px1, 3*px1]); ctx.lineWidth = px1;
-  ctx.beginPath(); ctx.moveTo(Rp[0], Rp[1]); ctx.lineTo(...F(0, a.Fn)); ctx.moveTo(Rp[0], Rp[1]); ctx.lineTo(...F(a.Ft, 0)); ctx.stroke();
-  ctx.setLineDash([]);
-  arrow2d(QC[0], QC[1], ...F(a.L*a.dirL[0], a.L*a.dirL[1], kL), AERO_COLORS.lift, tag("L", kL), false, 1);
-  arrow2d(QC[0], QC[1], ...F(a.D*a.dirD[0], a.D*a.dirD[1], kD), AERO_COLORS.drag, tag("D", kD), false, 1);
-  arrow2d(QC[0], QC[1], Rp[0], Rp[1], AERO_COLORS.res, "R", false, -1);
+  if (step >= 5) {
+    arrow2d(QC[0], QC[1], ...F(0, a.Fn, kFn), AERO_COLORS.thrust, tag("Fn", kFn), true, -1);
+    arrow2d(QC[0], QC[1], ...F(a.Ft, 0, kFt), AERO_COLORS.torque, tag("Ft", kFt), true, 1);
+    // projections of R onto the axes (true scale, so they meet the unmagnified components)
+    ctx.strokeStyle = "rgba(255,255,255,0.25)"; ctx.setLineDash([2*px1, 3*px1]); ctx.lineWidth = px1;
+    ctx.beginPath(); ctx.moveTo(Rp[0], Rp[1]); ctx.lineTo(...F(0, a.Fn)); ctx.moveTo(Rp[0], Rp[1]); ctx.lineTo(...F(a.Ft, 0)); ctx.stroke();
+    ctx.setLineDash([]);
+  }
+  if (step >= 3) {
+    arrow2d(QC[0], QC[1], ...F(a.L*a.dirL[0], a.L*a.dirL[1], kL), AERO_COLORS.lift, tag("L", kL), false, 1);
+    arrow2d(QC[0], QC[1], ...F(a.D*a.dirD[0], a.D*a.dirD[1], kD), AERO_COLORS.drag, tag("D", kD), false, 1);
+  }
+  if (step >= 4) arrow2d(QC[0], QC[1], Rp[0], Rp[1], AERO_COLORS.res, "R", false, -1);
+  // components normal and parallel to the chord (exercise 2: C_n, C_a)
+  if (state.showChordForces && step >= 3) {
+    const ar = rad(a.alpha), Nn = a.L * Math.cos(ar) + a.D * Math.sin(ar), Aa = a.D * Math.cos(ar) - a.L * Math.sin(ar);
+    const cu = [(te[0] - le[0]) / st.chord, (te[1] - le[1]) / st.chord];   // LE -> TE, blade frame (pitched)
+    let nu = [-cu[1], cu[0]];
+    if (nu[0] * a.dirL[0] + nu[1] * a.dirL[1] < 0) nu = [-nu[0], -nu[1]];   // toward the suction side, like lift
+    arrow2d(QC[0], QC[1], ...F(nu[0] * Nn, nu[1] * Nn), 0xb39ddb, "N ⊥ chord", true, -1);
+    arrow2d(QC[0], QC[1], ...F(cu[0] * Aa * kD, cu[1] * Aa * kD), 0x90a4ae, tag("A ∥ chord", kD), true, 1);
+  }
 
   // scale bars (screen space, bottom left)
   plain();
@@ -179,7 +195,10 @@ function drawSection(secCanvas, secInfo, view = { zoom: 1, tx: 0, ty: 0 }) {
     `U(1−a) ${a.ua.toFixed(1)} · Ωr ${a.ut.toFixed(1)} · W ${a.W.toFixed(1)} m/s<br/>` +
     `φ ${a.phi.toFixed(1)}° · β = twist ${st.twist.toFixed(1)}° + pitch ${opState.pitchDeg.toFixed(1)}° · α ${a.alpha.toFixed(1)}°<br/>` +
     `Cl ${a.cl.toFixed(3)} · Cd ${a.cd.toFixed(4)} · L ${kN(a.L)} · D ${kN(a.D)} kN/m<br/>` +
-    `Fn (thrust) ${kN(a.Fn)} · Ft (driving) ${kN(a.Ft)} kN/m`;
+    `Fn (thrust) ${kN(a.Fn)} · Ft (driving) ${kN(a.Ft)} kN/m<br/>` +
+    `Re ${(a.Re / 1e6).toFixed(2)}·10⁶ · ` + (a.bem
+      ? `BEM: a ${a.a.toFixed(3)} · a′ ${a.ap.toFixed(4)} · F ${a.F.toFixed(3)} · ${a.bem.iter} it.`
+      : `fixed a ${a.a.toFixed(2)}, a′ = 0`);
 }
 
 export { drawSection };

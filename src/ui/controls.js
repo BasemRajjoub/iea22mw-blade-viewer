@@ -50,4 +50,15 @@ function legend(container, items) {
   return el;
 }
 
-export { bind, button, legend, note, panel, readout };
+// coalesce: several state changes in one go (a preset sets many keys, a
+// slider fires many events) -> one redraw of a heavy window, right after
+function batched(fn) {
+  let queued = false;
+  return () => {
+    if (queued) return;
+    queued = true;
+    queueMicrotask(() => { queued = false; fn(); });
+  };
+}
+
+export { bind, button, legend, note, panel, batched, readout };

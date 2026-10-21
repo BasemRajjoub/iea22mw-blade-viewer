@@ -18,12 +18,25 @@ const state = {
   rpm: IEA22_AERO.ratedRpm, pitch: IEA22_AERO.finePitchDeg,
   // wind & aero
   wind: 11, induction: 1/3,
+  inductionModel: "bem",   // "bem" (solved a, a′) or "fixed" (induction slider, a′ = 0)
+  tipLoss: true, hubLoss: true, glauert: true,
+  followController: false, // rpm and pitch follow the IEA controller schedule as wind changes
   showVelocities: false, showForces: false, arrowsCutOnly: false, labels3d: false,
   // 2D section window
   suctionUp: true,
+  showChordForces: false,  // normal / tangential-to-chord force components
+  revealStep: 5,           // build-up: 1 velocities, 2 angles, 3 lift & drag, 4 resultant, 5 thrust & driving
   velScale: 1,          // 2D section: velocity triangle arrows ×
   forceScale: 1,        // 2D section: all force arrows ×
   smallForceScale: 1,   // 2D section: drag and driving force only × (labelled)
+  // site & energy (exercises 1 and 9); state.wind is the hub-height speed
+  shearModel: "log", z0: 0.0002, shearAlpha: 0.11,
+  showShear3D: false, showStreamTube: false,
+  meanWind: 10, weibullK: 2,            // k = 2 is the Rayleigh distribution
+  powerCurveSource: "IEA 22 MW (BEM)",
+  capex: 3000, opexFixed: 90, opexVar: 0.02, rate: 0.06, years: 25, price: 0.10,
+  // blade design (exercises 4 and 5)
+  designTSR: 9.15, designCl: 1.2, designAlpha: 6, ghostBlade: "none",
   // scale references
   car: false, human: false, field: false, eiffel: false,
   refStatus: "",       // informational: loading / error text for the glTF models
@@ -57,4 +70,8 @@ function set(key, value) {
   emit(key);
 }
 
-export { emit, on, onAny, set, state };
+// every key that changes the aerodynamics: windows showing aero numbers redraw on these
+const AERO_KEYS = ["rpm", "pitch", "wind", "induction", "inductionModel", "tipLoss", "hubLoss", "glauert",
+  "clockwise", "twist", "prebend", "sweep", "precone"];
+
+export { AERO_KEYS, emit, on, onAny, set, state };

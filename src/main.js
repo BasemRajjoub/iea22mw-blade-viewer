@@ -15,7 +15,9 @@ import "./scene/references.js";
 import "./scene/turbine.js";
 import "./aero/physics.js";
 import "./aero/arrows.js";
+import "./aero/performance.js";
 import "./aero/operating.js";
+import "./scene/teaching.js";
 import "./nav/navigation.js";
 import "./ui/window-manager.js";
 // dock order = import order
@@ -24,11 +26,15 @@ import "./ui/windows/cut.js";
 import "./ui/windows/geometry.js";
 import "./ui/windows/rotor.js";
 import "./ui/windows/aero.js";
+import "./ui/windows/performance.js";
 import "./ui/windows/section2d.js";
 import "./ui/windows/plots.js";
 import "./ui/windows/airfoils.js";
+import "./ui/windows/design.js";
+import "./ui/windows/site.js";
 import "./ui/windows/scale.js";
 import "./ui/windows/help.js";
+import "./ui/windows/exercises.js";   // last: it drives the other windows (its dock button goes on top)
 import * as THREE from "three";
 import { BLADE_LENGTH, leSign } from "./geometry/sections.js";
 import { INITIAL_TARGET, camera, invalidate, renderUntil, renderer, scene } from "./scene/setup.js";

@@ -44,6 +44,16 @@ def main(yaml_path):
         "ratedRpm": round(c["rated_rotor_speed"], 3),
         "maxRpm": round(c["max_rotor_speed"], 3),
         "optimalTsr": c["optimal_tsr"],
+        "ratedPower": d["assembly"]["rated_power"],
+        "hubHeight": d["assembly"]["hub_height"],
+        "cutIn": d["assembly"]["cut_in_wind_speed"],
+        "cutOut": d["assembly"]["cut_out_wind_speed"],
+        "region2K": c["region2_k"],                    # N·m/(rad/s)², generator torque = k·Ω²
+        "maxGenTorque": c["max_gen_torque"],           # N·m
+        "maxPitchRate": round(c["max_pitch_rate"], 3),  # °/s
+        # the controller's minimum pitch (peak shaving) vs wind speed
+        "minPitchTable": {"wind": [round(v, 4) for v in c["min_pitch_table"]["wind_speed"]],
+                          "pitch": [round(v, 4) for v in c["min_pitch_table"]["min_pitch"]]},
         "polars": polars,
     }
     data_dir = pathlib.Path(__file__).resolve().parent.parent / "src" / "data"

@@ -24,8 +24,13 @@ const fmtAuto = v => {
   return +v.toPrecision(4) + "";
 };
 
-// opts: { series: [{ label, x: [], y: [] }], xLabel, yLabel, logY, equal,
-//         xRange: [lo, hi], marker: { x, label }, fmtX, fmtY }
+// opts: { series, xLabel, yLabel, logY, equal, xRange: [lo, hi],
+//         marker: { x, label }, fmtX, fmtY,
+//         legend: [{ color, label }]   -- overrides the automatic legend
+//         yTicks: [{ v, label }] }     -- categorical rows instead of numbers
+// series: { label, x: [], y: [] }                 a line (palette colour), or
+//         { label, x, y0: [], y1: [], color }     a filled band between y0 and y1
+//         optional: color (explicit, e.g. a material), hover(i) -> text | null
 class LinePlot {
   constructor(canvas) {
     this.canvas = canvas;
@@ -51,23 +56,46 @@ class LinePlot {
     g.clearRect(0, 0, W, H);
     g.font = "11px system-ui, sans-serif";
 
-    const series = o.series.slice(0, SERIES.length).map((s, i) => ({ ...s, color: SERIES[i] }));
-    const multi = series.length > 1;
+    // palette colours for uncoloured series (max 3); explicitly coloured ones (materials) pass through
+    let slot = 0;
+    const series = o.series.map(s => s.color ? s : (slot < SERIES.length ? { ...s, color: SERIES[slot++] } : null)).filter(Boolean);
+    const band = s => Array.isArray(s.y0);
+    const yAt = (s, i) => band(s) ? s.y1[i] : s.y[i];
+    const legendItems = o.legend || (series.length > 1 ? series.map(s => ({ color: s.color, label: s.label })) : []);
+    const multi = legendItems.length > 1;
+    const endLabels = series.length > 1 && series.length <= 4 && !series.some(band) && !o.legend;
     const fy = o.logY ? (v => (v > 0 ? Math.log10(v) : NaN)) : (v => v);
     // data bounds
     let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
     series.forEach(s => s.x.forEach((x, i) => {
-      const y = fy(s.y[i]);
-      if (!isFinite(y) || (o.xRange && (x < o.xRange[0] || x > o.xRange[1]))) return;
-      x0 = Math.min(x0, x); x1 = Math.max(x1, x); y0 = Math.min(y0, y); y1 = Math.max(y1, y);
+      if (o.xRange && (x < o.xRange[0] || x > o.xRange[1])) return;
+      (band(s) ? [s.y0[i], s.y1[i]] : [s.y[i]]).forEach(v => {
+        const y = fy(v);
+        if (!isFinite(y)) return;
+        x0 = Math.min(x0, x); x1 = Math.max(x1, x); y0 = Math.min(y0, y); y1 = Math.max(y1, y);
+      });
     }));
+    if (o.yTicks) { y0 = Math.min(...o.yTicks.map(t => t.v)) - 0.6; y1 = Math.max(...o.yTicks.map(t => t.v)) + 0.6; }
     if (!isFinite(x0)) return;
     if (o.xRange) [x0, x1] = o.xRange;
     if (!o.logY && !o.equal && y0 > 0 && y0 < 0.25 * y1) y0 = 0;    // anchor near-zero data to the baseline
     if (y1 - y0 < 1e-12) { y0 -= 1; y1 += 1; }
-    const pad = (y1 - y0) * 0.06; y0 -= pad; y1 += pad;
+    if (!o.yTicks) { const pad = (y1 - y0) * 0.06; y0 -= pad; y1 += pad; }
 
-    const m = { l: 56, r: multi ? 86 : 14, t: multi ? 26 : 12, b: 34 };
+    const tickW = o.yTicks ? Math.max(...o.yTicks.map(t => g.measureText(t.label).width)) + 14 : 0;
+    const ml = Math.max(56, tickW + 8);
+    // legend layout: wrap onto more lines when it doesn't fit
+    const legendRows = [];
+    if (multi) {
+      let lx = ml, row = 0;
+      legendItems.forEach(s => {
+        const w = 19 + g.measureText(s.label).width + 16;
+        if (lx + w > W - 8 && lx > ml) { lx = ml; row++; }
+        legendRows.push({ s, x: lx, row }); lx += w;
+      });
+    }
+    const legendLines = legendRows.length ? legendRows[legendRows.length - 1].row + 1 : 0;
+    const m = { l: ml, r: endLabels ? 86 : 14, t: multi ? 12 + 16 * legendLines : 12, b: 34 };
     const pw = W - m.l - m.r, ph = H - m.t - m.b;
     if (pw < 40 || ph < 30) return;
     if (o.equal) {   // same scale on both axes (airfoil shapes)
@@ -83,12 +111,17 @@ class LinePlot {
     const xt = ticks(x0, x1, pw / 70);
     g.textAlign = "center";
     xt.forEach(v => { g.beginPath(); g.moveTo(X(v), m.t); g.lineTo(X(v), m.t + ph); g.stroke(); g.fillText((o.fmtX || fmtAuto)(v), X(v), m.t + ph + 14); });
-    const yt = o.logY ? ticks(Math.ceil(y0), Math.floor(y1), Math.min(ph / 30, 8)).filter(Number.isInteger) : ticks(y0, y1, ph / 34);
     g.textAlign = "right";
-    yt.forEach(v => {
-      g.beginPath(); g.moveTo(m.l, Y(v)); g.lineTo(m.l + pw, Y(v)); g.stroke();
-      g.fillText(o.logY ? "1e" + v : (o.fmtY || fmtAuto)(v), m.l - 6, Y(v) + 4);
-    });
+    if (o.yTicks) {
+      g.fillStyle = TEXT;
+      o.yTicks.forEach(t => g.fillText(t.label, m.l - 6, Y(t.v) + 4));
+    } else {
+      const yt = o.logY ? ticks(Math.ceil(y0), Math.floor(y1), Math.min(ph / 30, 8)).filter(Number.isInteger) : ticks(y0, y1, ph / 34);
+      yt.forEach(v => {
+        g.beginPath(); g.moveTo(m.l, Y(v)); g.lineTo(m.l + pw, Y(v)); g.stroke();
+        g.fillText(o.logY ? "1e" + v : (o.fmtY || fmtAuto)(v), m.l - 6, Y(v) + 4);
+      });
+    }
     if (!o.logY && y0 < 0 && y1 > 0) {   // zero line, a little stronger than the grid
       g.strokeStyle = "rgba(255,255,255,0.2)"; g.beginPath(); g.moveTo(m.l, Y(0)); g.lineTo(m.l + pw, Y(0)); g.stroke();
     }
@@ -96,35 +129,53 @@ class LinePlot {
     g.fillText(o.xLabel || "", m.l + pw / 2, H - 6);
     g.save(); g.translate(12, m.t + ph / 2); g.rotate(-Math.PI / 2); g.fillText(o.yLabel || "", 0, 0); g.restore();
 
-    // marker (e.g. the current cut)
-    if (o.marker && o.marker.x >= x0 && o.marker.x <= x1) {
-      g.strokeStyle = "rgba(255,255,255,0.45)"; g.setLineDash([4, 3]);
-      g.beginPath(); g.moveTo(X(o.marker.x), m.t); g.lineTo(X(o.marker.x), m.t + ph); g.stroke(); g.setLineDash([]);
+    // markers (e.g. the current cut, cut-in / rated / cut-out)
+    [o.marker, ...(o.markers || [])].filter(mk => mk && mk.x >= x0 && mk.x <= x1).forEach((mk, k) => {
+      g.strokeStyle = mk.strong ? "rgba(255,255,255,0.6)" : "rgba(255,255,255,0.3)"; g.setLineDash([4, 3]); g.lineWidth = 1;
+      g.beginPath(); g.moveTo(X(mk.x), m.t); g.lineTo(X(mk.x), m.t + ph); g.stroke(); g.setLineDash([]);
       g.fillStyle = MUTED; g.textAlign = "left";
-      g.fillText(o.marker.label || "", Math.min(X(o.marker.x) + 4, m.l + pw - 60), m.t + 11);
-    }
+      g.fillText(mk.label || "", Math.min(X(mk.x) + 4, m.l + pw - g.measureText(mk.label || "").width - 2), m.t + 11 + (k % 2) * 12);
+    });
 
     // series
     g.save(); g.beginPath(); g.rect(m.l, m.t, pw, ph); g.clip();
-    series.forEach(s => {
-      g.strokeStyle = s.color; g.lineWidth = 2; g.lineJoin = "round"; g.beginPath();
+    // bands: filled between y0 and y1, split wherever the data is missing
+    series.filter(band).forEach(s => {
+      g.fillStyle = s.color; g.globalAlpha = s.alpha ?? 0.85;
+      let seg = [];
+      const flush = () => {
+        if (seg.length > 1) {
+          g.beginPath();
+          seg.forEach((i, k) => k ? g.lineTo(X(s.x[i]), Y(fy(s.y1[i]))) : g.moveTo(X(s.x[i]), Y(fy(s.y1[i]))));
+          for (let k = seg.length - 1; k >= 0; k--) g.lineTo(X(s.x[seg[k]]), Y(fy(s.y0[seg[k]])));
+          g.closePath(); g.fill();
+        }
+        seg = [];
+      };
+      s.x.forEach((x, i) => (isFinite(fy(s.y0[i])) && isFinite(fy(s.y1[i])) ? seg.push(i) : flush()));
+      flush();
+      g.globalAlpha = 1;
+    });
+    series.filter(s => !band(s)).forEach(s => {
+      g.strokeStyle = s.color; g.lineWidth = 2; g.lineJoin = "round"; g.setLineDash(s.dashed ? [6, 4] : []); g.beginPath();
       let pen = false;
       s.x.forEach((x, i) => {
         const y = fy(s.y[i]);
         if (!isFinite(y)) { pen = false; return; }
         pen ? g.lineTo(X(x), Y(y)) : g.moveTo(X(x), Y(y)); pen = true;
       });
-      g.stroke();
+      g.stroke(); g.setLineDash([]);
     });
     g.restore();
 
     // legend (2+ series) and direct end labels, text in text colour
-    if (multi) {
-      g.textAlign = "left"; let lx = m.l;
-      series.forEach(s => {
-        g.strokeStyle = s.color; g.lineWidth = 2; g.beginPath(); g.moveTo(lx, 13); g.lineTo(lx + 14, 13); g.stroke();
-        g.fillStyle = TEXT; g.fillText(s.label, lx + 19, 17); lx += 19 + g.measureText(s.label).width + 16;
-      });
+    g.textAlign = "left";
+    legendRows.forEach(({ s, x, row }) => {
+      const y = 13 + row * 16;
+      g.strokeStyle = s.color; g.lineWidth = 2; g.beginPath(); g.moveTo(x, y); g.lineTo(x + 14, y); g.stroke();
+      g.fillStyle = TEXT; g.fillText(s.label, x + 19, y + 4);
+    });
+    if (endLabels) {
       const ends = series.map(s => {
         let i = s.x.length - 1;
         while (i > 0 && (!isFinite(fy(s.y[i])) || (o.xRange && s.x[i] > x1))) i--;
@@ -142,29 +193,32 @@ class LinePlot {
       const xv = x0 + (this.hoverX - m.l) / pw * (x1 - x0);
       const hits = series.map(s => {
         let best = -1, bd = Infinity;
-        s.x.forEach((x, i) => { const d = Math.abs(x - xv); if (d < bd && isFinite(fy(s.y[i]))) { bd = d; best = i; } });
-        return best < 0 ? null : { s, x: s.x[best], y: s.y[best] };
+        s.x.forEach((x, i) => { const d = Math.abs(x - xv); if (d < bd && isFinite(fy(yAt(s, i)))) { bd = d; best = i; } });
+        if (best < 0) return null;
+        const text = s.hover ? s.hover(best) : (band(s) ? null : (o.fmtY || fmtAuto)(s.y[best]));
+        return text == null ? null : { s, x: s.x[best], y: yAt(s, best), text, isBand: band(s) };
       }).filter(Boolean);
       if (hits.length) {
         const hx = X(hits[0].x);
         g.strokeStyle = "rgba(255,255,255,0.35)"; g.lineWidth = 1;
         g.beginPath(); g.moveTo(hx, m.t); g.lineTo(hx, m.t + ph); g.stroke();
-        hits.forEach(h => {
+        hits.filter(h => !h.isBand).forEach(h => {
           g.fillStyle = h.s.color; g.strokeStyle = SURFACE; g.lineWidth = 2;
           g.beginPath(); g.arc(X(h.x), Y(fy(h.y)), 4.5, 0, 2 * Math.PI); g.fill(); g.stroke();
         });
         const lines = [`${o.xLabel || "x"}: ${(o.fmtX || fmtAuto)(hits[0].x)}`,
-          ...hits.map(h => `${multi ? h.s.label + ": " : ""}${(o.fmtY || fmtAuto)(h.y)}`)];
-        const tw = Math.max(...lines.map(l => g.measureText(l).width)) + (multi ? 30 : 16), th = lines.length * 15 + 8;
+          ...hits.map(h => `${multi || h.isBand ? h.s.label + ": " : ""}${h.text}`)];
+        const tw = Math.max(...lines.map(l => g.measureText(l).width)) + 30, th = lines.length * 15 + 8;
         let tx = this.hoverX + 12, ty = Math.max(m.t, Math.min(this.hoverY - th / 2, m.t + ph - th));
         if (tx + tw > W - 4) tx = this.hoverX - 12 - tw;
         g.fillStyle = "rgba(12,14,18,0.94)"; g.strokeStyle = "rgba(255,255,255,0.15)"; g.lineWidth = 1;
         g.beginPath(); g.roundRect(tx, ty, tw, th, 6); g.fill(); g.stroke();
         g.textAlign = "left";
         lines.forEach((l, i) => {
-          if (multi && i > 0) { g.fillStyle = hits[i - 1].s.color; g.fillRect(tx + 8, ty + 6 + i * 15, 9, 3); }
+          const sw = i > 0 && (multi || hits[i - 1].isBand);
+          if (sw) { g.fillStyle = hits[i - 1].s.color; g.fillRect(tx + 8, ty + 6 + i * 15, 9, 3); }
           g.fillStyle = i ? TEXT : MUTED;
-          g.fillText(l, tx + (multi && i > 0 ? 22 : 8), ty + 15 + i * 15);
+          g.fillText(l, tx + (sw ? 22 : 8), ty + 15 + i * 15);
         });
       }
     }
@@ -177,7 +231,7 @@ function plotTable(opts, maxRows = 40) {
   const fx = opts.fmtX || fmtAuto, fyv = opts.fmtY || fmtAuto;
   let html = `<table class="data-table"><thead><tr><th>${opts.xLabel || "x"}</th>${opts.series.map(s => `<th>${s.label}</th>`).join("")}</tr></thead><tbody>`;
   for (let i = 0; i < s0.x.length; i += step) {
-    html += `<tr><td>${fx(s0.x[i])}</td>${opts.series.map(s => `<td>${isFinite(s.y[i]) ? fyv(s.y[i]) : "–"}</td>`).join("")}</tr>`;
+    html += `<tr><td>${fx(s0.x[i])}</td>${opts.series.map(s => { const v = s.value ? s.value(i) : (s.y ? s.y[i] : s.y1[i] - s.y0[i]); return `<td>${isFinite(v) ? fyv(v) : "–"}</td>`; }).join("")}</tr>`;
   }
   return html + "</tbody></table>";
 }

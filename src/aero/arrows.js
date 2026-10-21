@@ -103,4 +103,4 @@ function fillAeroArrows(group, stations, withLabels) {
   });
 }
 
-export { _yAxis, arrowStations, fillAeroArrows, hex, windGroupMain };
+export { _yAxis, arrowStations, fillAeroArrows, hex, makeArrow, windGroupMain };

@@ -30,15 +30,19 @@ There is no test suite. Check changes in the browser. `window.viewer` exposes `{
 | `scene/cut.js` | reacts to `cut` / `exag` / `wireframe`: `updateCut`, `rebuildForExaggeration`, `stackAt`, `rthickAt` |
 | `scene/references.js` | car / human (glTF), soccer field, Eiffel Tower |
 | `scene/turbine.js` | full turbine: hub → arm → cone → pitch groups, per-blade clip planes + ply caps |
-| `aero/physics.js` | polars, `makeStation`, `sectionAero` (velocities, α, L/D, Fn/Ft), `opState`, pitch |
+| `aero/physics.js` | polars, `makeStation`, `sectionAero(st, op, trace)` with the BEM solver (a, a′, Prandtl F, Glauert/Buhl) or fixed induction, `opState`, pitch |
+| `aero/performance.js` | rotor integration (`rotorPerformance`: T, Q, P, Cp, Ct), the IEA controller (`controllerAt`: rpm + pitch vs wind, region 3 pitch by bisection), cached `powerCurve()`, `cpLambda()` |
+| `aero/site.js` | wind shear, Weibull/Rayleigh, `annualEnergy`, `lcoe`, the V236 power curve (ex. 9) |
+| `aero/design.js` | Betz / Schmitz optimum chord and twist (ex. 4, 5) |
 | `aero/arrows.js` | solid 3D arrows, label sprites, which stations get arrows |
-| `aero/operating.js` | reacts to rotor / wind / geometry / rotation-sense keys: pitch, precone, `rebuildBladeGeometry`, arrows |
+| `aero/operating.js` | reacts to rotor / wind / induction-model / geometry / rotation-sense keys: pitch, precone, `rebuildBladeGeometry`, arrows, "follow the controller" |
+| `scene/teaching.js` | 3D teaching aids: wind-shear arrow column, Betz stream tube, ghost Betz/Schmitz blade |
 | `nav/navigation.js` | picking, orbit/pan/roll/zoom, pivot gizmo |
 | `ui/window-manager.js` | dock + floating windows (`createWindow`, `getWindow`): drag, resize, Details toggle, persistence |
 | `ui/controls.js` | lil-gui helpers: `panel`, `bind(gui, key, ...)`, `button`, `readout`, `note`, `legend` |
 | `ui/section-plot.js` | draws the 2D section (canvas + numbers), with zoom/pan view and arrow-scale sliders |
 | `ui/plot.js` | `LinePlot` (canvas line chart: max 3 series in the validated palette, legend + end labels, hover tooltip, log axis, marker) and `plotTable` |
-| `ui/windows/*.js` | one file per window (layers, cut, geometry, rotor, aero, section2d, plots, airfoils, scale, help). Dock order = import order in `main.js`. |
+| `ui/windows/*.js` | one file per window (layers, cut, geometry, rotor, aero, performance, section2d, plots, airfoils, design, site, scale, help, exercises). Dock order = import order in `main.js`; `exercises.js` is imported last (it drives the others through their `show…()` exports) and puts its button on top with `first: true`. |
 | `main.js` | turbine/Eiffel framing, dock actions (pause, reset view, About), render-on-demand loop, turbine cut sync |
 
 ## UI pattern
@@ -58,7 +62,9 @@ There is no test suite. Check changes in the browser. `window.viewer` exposes `{
 - **Mutable module state:** ES modules can't assign another module's `let`. User settings live in `state.js`; geometry internals use setters (`setExag`, `setChordMirror`) or exported objects (`opState`, `BLADE_GEOM`), which `aero/operating.js` and `scene/cut.js` keep in sync with `state`.
 - **Render on demand:** the loop only draws while something changes. Every `state` change and DOM event triggers a redraw; anything else that changes the picture (async loads, timers) must call `invalidate()`.
 - **Performance budget:** a full blade rebuild is ~45 ms. Wireframes are built lazily; don't build them eagerly.
-- **Aero honesty:** quasi-steady 2D blade element with user-set induction. No BEM iteration, tip loss or 3D effects, so integrated rotor power/thrust (Plots → Aero loads) come out well above the real turbine's. Keep UI text consistent with that.
+- **Aero model:** steady BEM by default (`state.inductionModel = "bem"`), fixed induction as a teaching option. Region-2 Cp ≈ 0.48, rated reached just above 10 m/s, 24° pitch at 25 m/s. Aero power only (no drivetrain losses), uniform inflow. Keep UI text consistent with that.
+- **Redraws:** windows with heavy plots subscribe with `batched(redraw)` (ui/controls.js), so a preset that sets ten keys redraws once. Anything aero-dependent listens to `AERO_KEYS` (state.js).
+- **Exercise presets** only call `set()` and open windows; they never compute. Numbers were checked against the sheets' solutions (ex. 1 shear/Rayleigh, ex. 4/5 Betz/Schmitz, ex. 9 AEP/LCOE).
 - **Charts:** use `LinePlot`; at most 3 series per chart (palette validated for 3); a quantity with more lines becomes a selector, not more colours.
 
 ## Deploy

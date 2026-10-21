@@ -172,4 +172,4 @@ WEBS.forEach((webLayer) => {
   plyGroups[webLayer.name] = group;
 });
 
-export { _noWire, capMeshes, capWireframes, clipLocal, endCapMeshes, plyGroups, plyMeshes, plyWireframes, setWireSource, syncClipPlane };
+export { _noWire, capMeshes, capWireframes, clipLocal, clipPlane, endCapMeshes, plyGroups, plyMeshes, plyWireframes, setWireSource, syncClipPlane };

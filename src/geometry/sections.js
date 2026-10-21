@@ -61,11 +61,13 @@ function blendedShape(z) {
 
 // full 3D section curve at span fraction z (chord/twist/offset/prebend applied)
 // returns {X (span,m), Y (chordwise,m), Z (thickness dir,m), nx, ny (in Y-Z plane)}
-function sectionCurve(z) {
+// over: optional { chord, twistDeg } replacing the real values (used for the
+// Betz / Schmitz "ghost" blades); the pitch-axis offset scales with the chord
+function sectionCurve(z, over = {}) {
   const { x: xs, y: ys } = blendedShape(z);
-  const c = chordAt(z);
-  const off = sectionOffsetYAt(z);
-  const twist = twistDegAt(z) * Math.PI/180;
+  const c = over.chord ?? chordAt(z);
+  const off = sectionOffsetYAt(z) * (over.chord != null ? over.chord / chordAt(z) : 1);
+  const twist = (over.twistDeg ?? twistDegAt(z)) * Math.PI/180;
   const [rx, ry, rz] = refAxisAt(z);
   const cosT = Math.cos(twist), sinT = Math.sin(twist);
 

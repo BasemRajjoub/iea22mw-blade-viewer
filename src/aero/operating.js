@@ -8,8 +8,9 @@ import { anchorLines, attachLines, refAxisLine } from "../scene/curves-meshes.js
 import { rebuildForExaggeration } from "../scene/cut.js";
 import { buildOmlGeometry, turbineBlades, turbineConeGroups, turbinePitchGroups, turbineWindGroups } from "../scene/turbine.js";
 import { computeLeStations, opState, pitchAngle } from "./physics.js";
+import { controllerAt, invalidatePerformance } from "./performance.js";
 import { arrowStations, fillAeroArrows, windGroupMain } from "./arrows.js";
-import { on, state } from "../state.js";
+import { on, set, state } from "../state.js";
 
 // Applies the rotor / wind / geometry settings from the shared state to the
 // scene: operating point, pitch of both blades, precone, rotation sense,
@@ -21,6 +22,8 @@ function applyOperatingPoint() {
   opState.pitchDeg = state.pitch;
   opState.wind = state.wind;
   opState.induction = state.induction;
+  opState.model = state.inductionModel;
+  opState.tipLoss = state.tipLoss; opState.hubLoss = state.hubLoss; opState.glauert = state.glauert;
   bladeRig.rotation.x = pitchAngle();
   turbinePitchGroups.forEach(g => { g.rotation.x = pitchAngle(); });
   refreshAeroArrows();
@@ -60,6 +63,7 @@ function rebuildBladeGeometry() {
   turbineBlades[0].mesh.geometry.dispose();
   turbineBlades.forEach(b => { b.mesh.geometry = oml; });
   computeLeStations();
+  invalidatePerformance();
 }
 
 on(["twist", "prebend", "sweep", "precone"], (v, key) => {
@@ -78,7 +82,20 @@ on("clockwise", (cw) => {
   applyOperatingPoint();
 });
 
-on(["rpm", "pitch", "wind", "induction"], applyOperatingPoint);
+on(["rpm", "pitch", "wind", "induction", "inductionModel", "tipLoss", "hubLoss", "glauert"], applyOperatingPoint);
+
+// "follow controller": rpm and pitch come from the IEA controller schedule
+// at the current wind speed; moving rpm or pitch by hand switches it off
+let steering = false;
+function followController() {
+  if (!state.followController) return;
+  const c = controllerAt(state.wind);
+  steering = true;
+  set("rpm", +c.rpm.toFixed(3)); set("pitch", +c.pitch.toFixed(2));
+  steering = false;
+}
+on(["followController", "wind", "inductionModel", "tipLoss", "hubLoss", "glauert"], followController);
+on(["rpm", "pitch"], () => { if (!steering && state.followController) set("followController", false); });
 on(["showVelocities", "showForces", "arrowsCutOnly", "labels3d", "cut"], refreshAeroArrows);
 
 Object.keys(BLADE_GEOM).forEach(k => { BLADE_GEOM[k] = state[k]; });

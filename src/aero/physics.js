@@ -9,13 +9,16 @@ import { HUB_RADIUS, RATED_RPM } from "../scene/turbine.js";
 // moves LE-first that way), downwind +Z. Written below for clockwise
 // (LE at +Y); every Y direction is multiplied by leSign(). At each station:
 //   axial      U(1-a)·cosγ   air arriving along +Z            (γ = precone)
-//   rotational Ωr            air arriving along -Y (blade moves +Y)
+//   rotational Ωr(1+a′)      air arriving along -Y (blade moves +Y)
 //   relative   W             their sum, hitting the leading edge
 //   lift L ⟂ W, drag D ∥ W, from the YAML polars at α = φ - (twist + pitch)
 //   thrust Fn (+Z) and driving force Ft (+Y) are the projections of L + D
-// User-set induction, no BEM iteration, tip loss or 3D effects.
+// Induction: either solved by blade-element momentum (BEM: a and a′ per
+// station, optional Prandtl tip/hub loss and Glauert/Buhl correction) or a
+// user-set axial a with a′ = 0 ("fixed"). Steady, no 3D/dynamic effects.
 // =====================================================================
 const RHO_AIR = 1.225;
+const N_BLADES = 3;
 const WIND_STATIONS = [0.3, 0.5, 0.7, 0.9, 0.98];   // span fractions
 const ARROW_M_PER_MPS = 0.25;                        // velocity arrow length per m/s
 const ARROW_M_PER_KNPM = 0.6;                        // force arrow length per kN/m
@@ -48,7 +51,12 @@ let leStations = [];
 function computeLeStations() { leStations = WIND_STATIONS.map(makeStation); }
 computeLeStations();
 
-const opState = { rpm: RATED_RPM, pitchDeg: IEA22_AERO.finePitchDeg, wind: 11, induction: 1/3 };
+// the operating point the scene shows (aero/operating.js keeps it in sync
+// with the shared state); sectionAero() also accepts any other op object
+const opState = {
+  rpm: RATED_RPM, pitchDeg: IEA22_AERO.finePitchDeg, wind: 11, induction: 1/3,
+  model: "bem", tipLoss: true, hubLoss: true, glauert: true,
+};
 
 // pitch turns the section about the pitch axis (blade X); positive pitch
 // turns the LE upwind (-Z), i.e. toward feather -- the same sense as twist.
@@ -59,27 +67,79 @@ function pitchYZ([y, z]) {
   return [y*c - z*s, y*s + z*c];
 }
 
-function sectionAero(st) {
+function coeffs(st, alpha) {
+  const p0 = polarAt(st.airfoils[0], alpha), p1 = polarAt(st.airfoils[1], alpha);
+  return { cl: (1 - st.blend) * p0.cl + st.blend * p1.cl, cd: (1 - st.blend) * p0.cd + st.blend * p1.cd };
+}
+
+// Prandtl tip and hub loss factor F at radius r for inflow angle phi (rad)
+function prandtl(r, phi, op) {
+  const s = Math.max(Math.abs(Math.sin(phi)), 1e-4);
+  let F = 1;
+  if (op.tipLoss) F *= 2/Math.PI * Math.acos(Math.min(1, Math.exp(-N_BLADES * (ROTOR_RADIUS - r) / (2 * r * s))));
+  if (op.hubLoss) F *= 2/Math.PI * Math.acos(Math.min(1, Math.exp(-N_BLADES * (r - HUB_RADIUS) / (2 * HUB_RADIUS * s))));
+  return Math.max(F, 1e-3);
+}
+
+// Solve a, a′ at one station (classic BEM fixed-point iteration with
+// relaxation). trace: push one row per iteration (exercise-6 table).
+function solveInduction(st, op, r, Un, omegaR, beta, trace) {
+  const sigma = N_BLADES * st.chord / (2 * Math.PI * r);
+  let a = 0.3, ap = 0, phi = 0, F = 1, iter = 0, converged = false;
+  for (iter = 1; iter <= 100; iter++) {
+    phi = Math.atan2(Un * (1 - a), omegaR * (1 + ap));
+    const alpha = phi * 180/Math.PI - beta;
+    const { cl, cd } = coeffs(st, alpha);
+    const sp = Math.sin(phi), cp = Math.cos(phi);
+    const cn = cl * cp + cd * sp, ct = cl * sp - cd * cp;
+    F = prandtl(r, phi, op);
+    // axial: momentum a = k/(1+k); heavily loaded -> Buhl's Glauert fit
+    const k = sigma * cn / (4 * F * sp * sp);
+    let aNew = k / (1 + k);
+    if (op.glauert && aNew > 0.4) {
+      const CT = sigma * (1 - a) ** 2 * cn / (sp * sp);
+      const disc = CT * (50 - 36 * F) + 12 * F * (3 * F - 4);
+      if (disc >= 0) aNew = (18 * F - 20 - 3 * Math.sqrt(disc)) / (36 * F - 50);
+    }
+    const kp = sigma * ct / (4 * F * sp * cp);
+    let apNew = kp / (1 - kp);
+    aNew = Math.min(Math.max(aNew, -0.5), 0.95);
+    apNew = Math.min(Math.max(apNew, -0.5), 1);
+    trace?.push({ iter, a, ap, phi: phi * 180/Math.PI, alpha, cl, cd, F, aNew, apNew });
+    const done = Math.abs(aNew - a) < 1e-5 && Math.abs(apNew - ap) < 1e-5;
+    a = a + 0.4 * (aNew - a); ap = ap + 0.4 * (apNew - ap);   // relaxation for stability
+    if (done) { converged = true; break; }
+  }
+  return { a, ap, F, iter, converged, sigma };
+}
+
+function sectionAero(st, op = opState, trace = null) {
   const cone = BLADE_GEOM.precone ? IEA22_AERO.coneDeg * Math.PI/180 : 0;
-  const omega = opState.rpm * 2*Math.PI / 60;
+  const omega = op.rpm * 2*Math.PI / 60;
   const r = (HUB_RADIUS + st.X) * Math.cos(cone);               // distance from the rotor axis
-  const ua = opState.wind * (1 - opState.induction) * Math.cos(cone);
-  const ut = omega * r;
+  const Un = op.wind * Math.cos(cone);                          // wind normal to the coned rotor
+  const beta = st.twist + op.pitchDeg;
+  let a = op.induction, ap = 0, F = 1, bem = null;
+  if (op.model === "bem" && omega > 0 && op.wind > 0) {
+    bem = solveInduction(st, op, r, Un, omega * r, beta, trace);
+    ({ a, ap, F } = bem);
+  }
+  const ua = Un * (1 - a);
+  const ut = omega * r * (1 + ap);
   const W = Math.hypot(ua, ut) || 1e-9;
   const phi = Math.atan2(ua, ut) * 180/Math.PI;
-  const beta = st.twist + opState.pitchDeg;
   const alpha = phi - beta;
-  const p0 = polarAt(st.airfoils[0], alpha), p1 = polarAt(st.airfoils[1], alpha);
-  const cl = (1 - st.blend) * p0.cl + st.blend * p1.cl, cd = (1 - st.blend) * p0.cd + st.blend * p1.cd;
+  const { cl, cd } = coeffs(st, alpha);
   const q = 0.5 * RHO_AIR * W * W * st.chord;                   // N/m per unit coefficient
   const L = q * cl, D = q * cd;
   const cphi = ut / W, sphi = ua / W, sY = leSign();
   return {
-    r, ua, ut, W, phi, beta, alpha, cl, cd, L, D,
+    r, ua, ut, W, phi, beta, alpha, cl, cd, L, D, a, ap, F, bem,
+    Re: W * st.chord / 1.464e-5,                                  // ν of air at 15 °C, as in the exercises
     Fn: L*cphi + D*sphi, Ft: L*sphi - D*cphi,
     // unit directions in the blade (Y, Z) plane
     dirW: [-cphi*sY, sphi], dirL: [sphi*sY, cphi], dirD: [-cphi*sY, sphi],
   };
 }
 
-export { AERO_COLORS, ARROW_M_PER_KNPM, ARROW_M_PER_MPS, PRESWEEP_IN_YAML, ROTOR_RADIUS, computeLeStations, leStations, makeStation, opState, pitchAngle, pitchYZ, polarAt, sectionAero };
+export { N_BLADES, RHO_AIR, AERO_COLORS, ARROW_M_PER_KNPM, ARROW_M_PER_MPS, PRESWEEP_IN_YAML, ROTOR_RADIUS, computeLeStations, leStations, makeStation, opState, pitchAngle, pitchYZ, polarAt, sectionAero };

@@ -1,9 +1,9 @@
 import { IEA22, IEA22_AERO } from "../../data/index.js";
 import { blendedShape } from "../../geometry/sections.js";
 import { makeStation, polarAt, sectionAero } from "../../aero/physics.js";
-import { on, state } from "../../state.js";
+import { AERO_KEYS, on, state } from "../../state.js";
 import { createWindow } from "../window-manager.js";
-import { note, panel, readout } from "../controls.js";
+import { note, panel, batched, readout } from "../controls.js";
 import { LinePlot, plotTable } from "../plot.js";
 
 // Airfoils: shapes and polars (Cl, Cd, Cm, Cl/Cd vs α) for every airfoil in
@@ -73,6 +73,16 @@ function redraw() {
   info.textContent = `cut z = ${st.z.toFixed(2)}: ${af} · α ${aCut.toFixed(1)}° · Cl ${coeffAt(BLEND, "cl", aCut).toFixed(3)} · Cd ${coeffAt(BLEND, "cd", aCut).toFixed(4)}`;
   if (win.showDetails) table.innerHTML = plotTable(opts);
 }
+const redrawSoon = batched(redraw);
 win.onShow(redraw);
 win.onDetails(redraw);
-on(["cut", "rpm", "pitch", "wind", "induction", "clockwise", "twist", "prebend", "sweep", "precone"], redraw);
+on(["cut", ...AERO_KEYS], redrawSoon);
+
+// e.g. showAirfoils({ airfoil: "SNL-FFA-W3-420FB", compare: "FFA-W3-211", coeff: "Glide ratio Cl/Cd" })
+function showAirfoils(opts) {
+  Object.assign(view, opts);
+  gui.controllersRecursive().forEach(c => c.updateDisplay());
+  win.open(); redraw();
+}
+
+export { showAirfoils };

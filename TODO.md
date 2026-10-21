@@ -4,10 +4,13 @@ Ideas and known issues for the IEA 22 MW blade viewer, roughly in order of value
 
 ## Feature ideas
 
-- [x] **Spanwise load plot** — Plots → Aero loads integrates thrust, torque and power (needs the BEM solve below to become realistic).
-- [ ] **BEM induction solve** — iterate axial and tangential induction per station (with Prandtl tip loss) instead of the user-set induction slider. Would make α, loads and power realistic without tuning.
+- [x] **Spanwise load plot** — Plots → Aero loads integrates thrust, torque and power; Performance has the power curve.
+- [x] **BEM induction solve** — default induction model (Wind & aero), with tip/hub loss and Glauert switches.
 - [x] **Polar plots** — Airfoils window: Cl, Cd, Cm, Cl/Cd vs α, blended airfoil at the cut, α marked.
 - [ ] **Plies in the 2D section** — draw the coloured ply stack inside the section outline (the cap geometry already exists).
+- [ ] **Shear in the loads** — use the shear profile per blade azimuth in BEM (cyclic loads), not just as a picture.
+- [ ] **NREL 5MW comparison** — exercises 4–8 use the NREL 5MW; its chord/twist table could be overlaid in Blade design.
+- [ ] **Offshore turbine model** — `exercises/wind1/Offshore_wind_turbine` has no licence file (looks like a marketplace download); only usable after checking the licence.
 - [ ] **Shaft tilt** — 6° uptilt toggle from the YAML (`components.drivetrain.outer_shape.uptilt`), next to precone.
 - [ ] **Shareable URL state** — keep camera and slider settings in the URL hash, so a link reopens the same view.
 

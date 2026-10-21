@@ -32,9 +32,13 @@ Everything lives in **floating windows** opened from the dock on the left: drag 
 - **2D section** — the section at the cut, seen from the tip, with the velocity triangle, the φ / β / α angles and the forces, drawn at fixed scales (scale bars included) so an arrow only changes when its own value does; suction side up by default. Wheel zooms toward the cursor, drag pans, double-click resets. **Arrow exaggeration** sliders scale the whole velocity triangle, all forces, or just drag and the driving force (labelled, e.g. D ×30) for teaching. Details shows the values.
 - **Plots** — spanwise data from the YAML: chord, twist, t/c, prebend, pitch-axis position, mass per metre (with total blade mass), bending/torsional/axial stiffness, mass moments of inertia, each ply's thickness, and the aero loads, angle of attack and Cl along the span at the current operating point (integrated into thrust, torque and power); the cut is marked. Details shows the data as a table.
 - **Airfoils** — every airfoil's shape and its Cl, Cd, Cm and Cl/Cd polars (or the blend used at the cut), with an optional second airfoil to compare and the angle of attack at the cut marked.
+- **Performance** — whole-rotor results from BEM with the IEA controller: power curve, Cp (with the Betz limit), rotor speed, pitch schedule (vs the YAML minimum-pitch table), thrust, torque, tip-speed ratio and the Cp–λ / Ct–λ curves; **Follow the controller** makes rpm and pitch track the wind speed.
+- **Site & energy** — wind shear across the rotor (log law with sea / grass / forest roughness, or power law; optional arrows in 3D and a Betz stream tube), the Weibull/Rayleigh distribution with annual energy, capacity factor and full-load hours, and the cost of energy (CRF, LCOE, payback, break-even CF) — for the IEA 22 MW or the exercise's Vestas V236.
+- **Blade design** — Betz and Schmitz optimum chord and twist for a design tip-speed ratio, Cl and α against the real blade, with a translucent "ghost" optimum blade in 3D.
+- **Exercises** — one-click presets for the nine Wind 1 exercise sheets (wind & site, aerodynamics I/II, Betz, Schmitz, BEM, QBlade, control, energy & economics): each sets the values and opens the windows that show the answer; Details lists the key formulas.
 - **Scale** — car, human, soccer field and Eiffel Tower for size.
 
-The aerodynamics are quasi-steady 2D blade-element estimates with a user-set axial induction (default 1/3) — no BEM iteration, tip loss or 3D effects.
+The aerodynamics are steady blade-element momentum (BEM: axial and tangential induction solved per station, Prandtl tip/hub loss and a Glauert/Buhl correction, each switchable) using the YAML airfoil polars; a fixed-induction mode is kept for teaching. No dynamic inflow, yaw, shear or 3D effects in the loads; aero power has no drivetrain losses.
 
 ## How it works
 

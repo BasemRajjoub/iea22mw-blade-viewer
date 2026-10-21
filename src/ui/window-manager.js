@@ -15,13 +15,14 @@ function save(id, data) {
   try { localStorage.setItem("iea22-win:" + id, JSON.stringify(data)); } catch (e) {}
 }
 
-// createWindow({ id, title, icon, width, details, open, top, resizable }) -> api
+// createWindow({ id, title, icon, width, details, open, top, resizable, first }) -> api
+//   first: put the dock button at the top (for a window imported last)
 //   api.main / api.details  -- containers to fill
 //   api.isOpen(), api.open(), api.close(), api.toggle()
 //   api.onShow(fn)          -- called when opened or resized (redraw canvases here)
 //   api.showDetails         -- current state of the Details toggle
 //   api.onDetails(fn)       -- called when the Details toggle changes
-function createWindow({ id, title, icon, width = 300, details = false, open = false, top, resizable = "both" }) {
+function createWindow({ id, title, icon, width = 300, details = false, open = false, top, resizable = "both", first = false }) {
   const el = document.createElement("section");
   el.className = "win";
   el.dataset.win = id;
@@ -46,7 +47,7 @@ function createWindow({ id, title, icon, width = 300, details = false, open = fa
   btn.title = title;
   btn.setAttribute("aria-pressed", "false");
   btn.innerHTML = `<span class="dock-icon" aria-hidden="true">${icon}</span><span class="dock-label">${title}</span>`;
-  dockWindows.appendChild(btn);
+  if (first) dockWindows.prepend(btn); else dockWindows.appendChild(btn);
 
   const detailsBtn = el.querySelector(".win-details");
   const more = el.querySelector(".win-more");
