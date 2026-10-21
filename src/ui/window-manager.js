@@ -48,7 +48,6 @@ function createWindow({ id, title, icon, width = 300, details = false, open = fa
   btn.innerHTML = `<span class="dock-icon" aria-hidden="true">${icon}</span><span class="dock-label">${title}</span>`;
   dockWindows.appendChild(btn);
 
-  const head = el.querySelector(".win-head");
   const detailsBtn = el.querySelector(".win-details");
   const more = el.querySelector(".win-more");
   const showFns = [], detailFns = [];
@@ -106,20 +105,37 @@ function createWindow({ id, title, icon, width = 300, details = false, open = fa
   detailsBtn?.addEventListener("click", () => setDetails(!api.showDetails));
   el.addEventListener("pointerdown", front);
 
+  // drag from anywhere that isn't a control: title bar, padding, notes,
+  // readouts, the plot -- but not inputs/buttons/lil-gui rows, the
+  // scrollbar or the resize grip in the bottom-right corner
   let drag = null;
-  head.addEventListener("pointerdown", (e) => {
-    if (e.target.closest("button, input, label")) return;
+  const NO_DRAG = "button, input, select, textarea, a, label, .lil-controller, .lil-title, [data-nodrag]";
+  el.addEventListener("pointerdown", (e) => {
+    if (e.button !== 0 || e.target.closest(NO_DRAG)) return;
+    // on touch, the body scrolls -- only the title bar moves the window
+    if (e.pointerType !== "mouse" && !e.target.closest(".win-head")) return;
     const r = el.getBoundingClientRect();
+    if (r.right - e.clientX < 18 && r.bottom - e.clientY < 18) return;           // resize grip
+    const body = e.target.closest(".win-body");
+    if (body && e.clientX > body.getBoundingClientRect().left + body.clientWidth) return;  // scrollbar
     drag = { dx: e.clientX - r.left, dy: e.clientY - r.top };
-    head.setPointerCapture(e.pointerId);
+    el.setPointerCapture(e.pointerId);
+    document.body.classList.add("win-dragging");
+    e.preventDefault();   // no text selection while dragging
   });
-  head.addEventListener("pointermove", (e) => {
+  el.addEventListener("pointermove", (e) => {
     if (!drag) return;
     el.style.left = (e.clientX - drag.dx) + "px";
     el.style.top = (e.clientY - drag.dy) + "px";
     clamp();
   });
-  head.addEventListener("pointerup", () => { if (drag) { drag = null; persist(); } });
+  const endDrag = () => {
+    if (!drag) return;
+    drag = null; persist();
+    document.body.classList.remove("win-dragging");
+  };
+  el.addEventListener("pointerup", endDrag);
+  el.addEventListener("pointercancel", endDrag);
 
   // redraw on any size change; only the corner grip writes an inline height,
   // so that is when the size is worth remembering

@@ -21,6 +21,9 @@ const state = {
   showVelocities: false, showForces: false, arrowsCutOnly: false, labels3d: false,
   // 2D section window
   suctionUp: true,
+  velScale: 1,          // 2D section: velocity triangle arrows ×
+  forceScale: 1,        // 2D section: all force arrows ×
+  smallForceScale: 1,   // 2D section: drag and driving force only × (labelled)
   // scale references
   car: false, human: false, field: false, eiffel: false,
   refStatus: "",       // informational: loading / error text for the glTF models

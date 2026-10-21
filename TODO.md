@@ -4,9 +4,9 @@ Ideas and known issues for the IEA 22 MW blade viewer, roughly in order of value
 
 ## Feature ideas
 
-- [ ] **Spanwise load plot** — thrust (Fn) and driving force (Ft) along the whole span, integrated into rotor thrust, torque and power, and compared with the 22 MW rating.
+- [x] **Spanwise load plot** — Plots → Aero loads integrates thrust, torque and power (needs the BEM solve below to become realistic).
 - [ ] **BEM induction solve** — iterate axial and tangential induction per station (with Prandtl tip loss) instead of the user-set induction slider. Would make α, loads and power realistic without tuning.
-- [ ] **Polar plot in the 2D window** — Cl(α) and Cd(α) of the blended airfoil at the cut, with the current α marked.
+- [x] **Polar plots** — Airfoils window: Cl, Cd, Cm, Cl/Cd vs α, blended airfoil at the cut, α marked.
 - [ ] **Plies in the 2D section** — draw the coloured ply stack inside the section outline (the cap geometry already exists).
 - [ ] **Shaft tilt** — 6° uptilt toggle from the YAML (`components.drivetrain.outer_shape.uptilt`), next to precone.
 - [ ] **Shareable URL state** — keep camera and slider settings in the URL hash, so a link reopens the same view.

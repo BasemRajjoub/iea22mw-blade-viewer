@@ -7,7 +7,7 @@ Interactive three.js viewer of the IEA 22 MW reference wind turbine blade: real 
 - `npm install` — once.
 - `npm run dev` — dev server with live reload.
 - `npm run build` — writes `dist/index.html`: all JS, CSS and JSON inlined and minified. It opens straight from disk (`file://`) with no network, except the optional car/human models and the Draco decoder, which load from a CDN.
-- `python3 scripts/extract_yaml.py <IEA-22-280-RWT.yaml>` — regenerates `src/data/aero.json`.
+- `python3 scripts/extract_yaml.py <IEA-22-280-RWT.yaml>` — regenerates `src/data/aero.json` and `src/data/structure.json`.
 
 There is no test suite. Check changes in the browser. `window.viewer` exposes `{ scene, camera, renderer, frameView, state, set, setPaused }` for the console. `viewer.set("cut", 0.6)` drives the app exactly like the controls do.
 
@@ -18,7 +18,7 @@ There is no test suite. Check changes in the browser. `window.viewer` exposes `{
 | Module | What it holds |
 |---|---|
 | `state.js` | **every user setting** (`state`), `set(key, v)`, `on(keys, fn)`, `onAny(fn)`. The only link between the UI and the scene. |
-| `data/` | `iea22.json` (blade geometry + layup), `aero.json` (rotor settings + polars), `MATERIAL_COLORS`. **Never read the JSON files whole**: they are single lines of 35–280 KB. |
+| `data/` | `iea22.json` (blade geometry + layup), `aero.json` (rotor settings + cl/cd/cm polars), `structure.json` (spanwise mass, inertia, EA/EI/GJ), `MATERIAL_COLORS`. **Never read the JSON files whole**: they are single lines of 35–280 KB. |
 | `geometry/math.js` | interpolation helpers (`lerp1D`, `field`), section normals |
 | `geometry/sections.js` | blend table, `sectionCurve(z)`, geometry switches `BLADE_GEOM`, rotation sense `CHORD_MIRROR` / `leSign()` |
 | `geometry/plies.js` | ply thickness (`EXAG`), the z/s grid, `sectionCache`, ply shell + cap geometry |
@@ -36,8 +36,9 @@ There is no test suite. Check changes in the browser. `window.viewer` exposes `{
 | `nav/navigation.js` | picking, orbit/pan/roll/zoom, pivot gizmo |
 | `ui/window-manager.js` | dock + floating windows (`createWindow`, `getWindow`): drag, resize, Details toggle, persistence |
 | `ui/controls.js` | lil-gui helpers: `panel`, `bind(gui, key, ...)`, `button`, `readout`, `note`, `legend` |
-| `ui/section-plot.js` | draws the 2D section (canvas + numbers) |
-| `ui/windows/*.js` | one file per window (layers, cut, geometry, rotor, aero, section2d, scale, help). Dock order = import order in `main.js`. |
+| `ui/section-plot.js` | draws the 2D section (canvas + numbers), with zoom/pan view and arrow-scale sliders |
+| `ui/plot.js` | `LinePlot` (canvas line chart: max 3 series in the validated palette, legend + end labels, hover tooltip, log axis, marker) and `plotTable` |
+| `ui/windows/*.js` | one file per window (layers, cut, geometry, rotor, aero, section2d, plots, airfoils, scale, help). Dock order = import order in `main.js`. |
 | `main.js` | turbine/Eiffel framing, dock actions (pause, reset view, About), render-on-demand loop, turbine cut sync |
 
 ## UI pattern
@@ -57,7 +58,8 @@ There is no test suite. Check changes in the browser. `window.viewer` exposes `{
 - **Mutable module state:** ES modules can't assign another module's `let`. User settings live in `state.js`; geometry internals use setters (`setExag`, `setChordMirror`) or exported objects (`opState`, `BLADE_GEOM`), which `aero/operating.js` and `scene/cut.js` keep in sync with `state`.
 - **Render on demand:** the loop only draws while something changes. Every `state` change and DOM event triggers a redraw; anything else that changes the picture (async loads, timers) must call `invalidate()`.
 - **Performance budget:** a full blade rebuild is ~45 ms. Wireframes are built lazily; don't build them eagerly.
-- **Aero honesty:** quasi-steady 2D blade element with user-set induction. No BEM iteration, tip loss or 3D effects. Keep UI text consistent with that.
+- **Aero honesty:** quasi-steady 2D blade element with user-set induction. No BEM iteration, tip loss or 3D effects, so integrated rotor power/thrust (Plots → Aero loads) come out well above the real turbine's. Keep UI text consistent with that.
+- **Charts:** use `LinePlot`; at most 3 series per chart (palette validated for 3); a quantity with more lines becomes a selector, not more colours.
 
 ## Deploy
 

@@ -29,7 +29,7 @@ const PRESWEEP_IN_YAML = IEA22.refAxisY.values.some(v => Math.abs(v) > 1e-6);
 function polarAt(name, aoaDeg) {
   const p = IEA22_AERO.polars[name];
   const a = ((aoaDeg + 180) % 360 + 360) % 360 - 180;   // wrap into [-180, 180)
-  return { cl: lerp1D(a, p.aoa, p.cl), cd: lerp1D(a, p.aoa, p.cd) };
+  return { cl: lerp1D(a, p.aoa, p.cl), cd: lerp1D(a, p.aoa, p.cd), cm: lerp1D(a, p.aoa, p.cm) };
 }
 
 // everything the aero needs about one spanwise station, in the (unpitched) blade frame
@@ -82,4 +82,4 @@ function sectionAero(st) {
   };
 }
 
-export { AERO_COLORS, ARROW_M_PER_KNPM, ARROW_M_PER_MPS, PRESWEEP_IN_YAML, ROTOR_RADIUS, computeLeStations, leStations, makeStation, opState, pitchAngle, pitchYZ, sectionAero };
+export { AERO_COLORS, ARROW_M_PER_KNPM, ARROW_M_PER_MPS, PRESWEEP_IN_YAML, ROTOR_RADIUS, computeLeStations, leStations, makeStation, opState, pitchAngle, pitchYZ, polarAt, sectionAero };

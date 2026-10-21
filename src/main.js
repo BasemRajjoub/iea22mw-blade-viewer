@@ -25,6 +25,8 @@ import "./ui/windows/geometry.js";
 import "./ui/windows/rotor.js";
 import "./ui/windows/aero.js";
 import "./ui/windows/section2d.js";
+import "./ui/windows/plots.js";
+import "./ui/windows/airfoils.js";
 import "./ui/windows/scale.js";
 import "./ui/windows/help.js";
 import * as THREE from "three";
