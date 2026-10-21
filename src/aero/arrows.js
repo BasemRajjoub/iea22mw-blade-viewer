@@ -1,14 +1,10 @@
 import * as THREE from "three";
 import { leSign } from "../geometry/sections.js";
 import { coneRig } from "../scene/setup.js";
-import { slider } from "../ui/layers-panel.js";
+import { state } from "../state.js";
 import { turbineWindGroups } from "../scene/turbine.js";
 import { AERO_COLORS, ARROW_M_PER_KNPM, ARROW_M_PER_MPS, leStations, makeStation, pitchYZ, sectionAero } from "./physics.js";
 
-const windToggle = document.getElementById("windToggle");
-const forceToggle = document.getElementById("forceToggle");
-const cutOnlyToggle = document.getElementById("cutOnlyToggle");
-const labels3dToggle = document.getElementById("labels3dToggle");
 const hex = c => "#" + c.toString(16).padStart(6, "0");
 
 // solid arrows (cylinder shaft + cone head) -- line widths are always 1 px in WebGL
@@ -37,9 +33,9 @@ coneRig.add(windGroupMain);
 // the fixed stations up to the cut, plus the cut station itself
 // (or only the cut station)
 function arrowStations() {
-  const zc = parseFloat(slider.value);
+  const zc = state.cut;
   const cutSt = () => Object.assign(makeStation(Math.min(Math.max(zc, 0.02), 0.98)), { labelled: true });
-  if (cutOnlyToggle.checked) return [cutSt()];
+  if (state.arrowsCutOnly) return [cutSt()];
   if (zc >= 0.995) return leStations.map((st, i) => i === leStations.length - 1 ? { ...st, labelled: true } : st);
   return [...leStations.filter(st => st.z < zc - 0.02), cutSt()];
 }
@@ -69,7 +65,7 @@ function makeLabelBlock(lines) {
 function fillAeroArrows(group, stations, withLabels) {
   group.traverse(o => { if (o.isSprite) { o.material.map.dispose(); o.material.dispose(); } });
   group.clear();
-  const showV = windToggle.checked, showF = forceToggle.checked, labels = withLabels && labels3dToggle.checked;
+  const showV = state.showVelocities, showF = state.showForces, labels = withLabels && state.labels3d;
   const sY = leSign();
   stations.forEach(st => {
     const a = sectionAero(st), lines = [];
@@ -107,4 +103,4 @@ function fillAeroArrows(group, stations, withLabels) {
   });
 }
 
-export { _yAxis, arrowStations, cutOnlyToggle, fillAeroArrows, forceToggle, hex, labels3dToggle, windGroupMain, windToggle };
+export { _yAxis, arrowStations, fillAeroArrows, hex, windGroupMain };

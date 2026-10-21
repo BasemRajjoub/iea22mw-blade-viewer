@@ -4,7 +4,7 @@ import { BLADE_LENGTH, N_S } from "../geometry/sections.js";
 import { N_Z, sectionCache } from "../geometry/plies.js";
 import { scene } from "./setup.js";
 import { capMeshes } from "./blade-meshes.js";
-import { ALL_PLY_NAMES } from "../ui/layers-panel.js";
+import { ALL_PLY_NAMES } from "./curves-meshes.js";
 import { GROUND_Y } from "./references.js";
 
 // full turbine: 3 plain outer-surface blades on a hub + tower, for size only.
@@ -32,7 +32,6 @@ function buildOmlGeometry() {
   return bg;
 }
 
-const turbineCutToggle = document.getElementById("turbineCutToggle");
 const turbineGroup = (() => {
   const bg = buildOmlGeometry();
   const bladeMat = new THREE.MeshStandardMaterial({ color: 0xe6eaee, roughness: 0.5, metalness: 0.05, side: THREE.DoubleSide });
@@ -82,4 +81,4 @@ const turbineGroup = (() => {
   return outer;
 })();
 
-export { HUB_HEIGHT, HUB_RADIUS, RATED_RPM, buildOmlGeometry, rotorArms, turbineBlades, turbineConeGroups, turbineCutToggle, turbineGroup, turbinePitchGroups, turbineWindGroups };
+export { HUB_HEIGHT, HUB_RADIUS, RATED_RPM, buildOmlGeometry, rotorArms, turbineBlades, turbineConeGroups, turbineGroup, turbinePitchGroups, turbineWindGroups };

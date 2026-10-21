@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { on, set, state } from "../state.js";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { DRACOLoader } from "three/examples/jsm/loaders/DRACOLoader.js";
 import { lerp1D } from "../geometry/math.js";
@@ -9,7 +10,6 @@ import { invalidate, scene } from "./setup.js";
 // scale-reference models (car + human), loaded from CDN on first tick.
 // Each is normalised by bounding box to a real-world size in metres.
 // =====================================================================
-const refStatus = document.getElementById("refStatus");
 const GROUND_Y = -4; // grid height
 const MODEL_BASE = "https://cdn.jsdelivr.net/gh/mrdoob/three.js@r128/examples/models/gltf/";
 const gltfLoader = new GLTFLoader();
@@ -32,24 +32,24 @@ function loadRef(file, fit, place, onDone) {
     place(wrap);
     scene.add(wrap);
     onDone(wrap, gltf);
-  }, undefined, () => { refStatus.textContent = "Could not load " + file + " (offline?)"; });
+  }, undefined, () => { set("refStatus", "Could not load " + file + " (offline?)"); });
 }
 
-function setupRefToggle(id, file, fit, place) {
-  const cb = document.getElementById(id);
+// loads the model the first time state[key] turns on, then just shows/hides it
+function setupRefToggle(key, file, fit, place) {
   let model = null, loading = false;
-  cb.addEventListener("change", () => {
-    if (model) { model.visible = cb.checked; return; }
-    if (!cb.checked || loading) return;
-    loading = true; refStatus.textContent = "Loading " + file + "…";
+  on(key, (shown) => {
+    if (model) { model.visible = shown; return; }
+    if (!shown || loading) return;
+    loading = true; set("refStatus", "Loading " + file + "…");
     loadRef(file, fit, place, (m) => {
-      model = m; m.visible = cb.checked; loading = false; refStatus.textContent = "";
+      model = m; m.visible = state[key]; loading = false; set("refStatus", "");
     });
   });
 }
 
 // human: Soldier.glb, upright along +Y, scaled to 1.75 m, standing beside the root
-setupRefToggle("humanToggle", "Soldier.glb",
+setupRefToggle("human", "Soldier.glb",
   (obj) => {
     const b = new THREE.Box3().setFromObject(obj);
     obj.scale.setScalar(1.75 / (b.max.y - b.min.y));
@@ -58,7 +58,7 @@ setupRefToggle("humanToggle", "Soldier.glb",
 );
 
 // car: Ferrari, longest horizontal axis -> 4.5 m, parked parallel to the blade at mid-span
-setupRefToggle("carToggle", "ferrari.glb",
+setupRefToggle("car", "ferrari.glb",
   (obj) => {
     const b = new THREE.Box3().setFromObject(obj);
     const len = Math.max(b.max.x - b.min.x, b.max.z - b.min.z);
@@ -109,7 +109,7 @@ const fieldGroup = (() => {
   scene.add(grp);
   return grp;
 })();
-document.getElementById("fieldToggle").addEventListener("change", (e) => { fieldGroup.visible = e.target.checked; });
+on("field", (v) => { fieldGroup.visible = v; });
 
 
 // Eiffel Tower: procedural wrought-iron lattice (324 m + antenna = 330 m,

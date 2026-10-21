@@ -9,35 +9,46 @@ import "./geometry/webs.js";
 import "./geometry/curves.js";
 import "./scene/setup.js";
 import "./scene/blade-meshes.js";
-import "./ui/layers-panel.js";
+import "./scene/curves-meshes.js";
+import "./scene/cut.js";
 import "./scene/references.js";
 import "./scene/turbine.js";
 import "./aero/physics.js";
 import "./aero/arrows.js";
-import "./ui/section-window.js";
-import "./ui/operating.js";
+import "./aero/operating.js";
 import "./nav/navigation.js";
+import "./ui/window-manager.js";
+// dock order = import order
+import "./ui/windows/layers.js";
+import "./ui/windows/cut.js";
+import "./ui/windows/geometry.js";
+import "./ui/windows/rotor.js";
+import "./ui/windows/aero.js";
+import "./ui/windows/section2d.js";
+import "./ui/windows/scale.js";
+import "./ui/windows/help.js";
 import * as THREE from "three";
 import { BLADE_LENGTH, leSign } from "./geometry/sections.js";
 import { INITIAL_TARGET, camera, invalidate, renderUntil, renderer, scene } from "./scene/setup.js";
 import { capMeshes, clipLocal, plyGroups, syncClipPlane } from "./scene/blade-meshes.js";
 import { GROUND_Y, eiffelGroup } from "./scene/references.js";
-import { HUB_HEIGHT, rotorArms, turbineBlades, turbineCutToggle, turbineGroup } from "./scene/turbine.js";
+import { HUB_HEIGHT, rotorArms, turbineBlades, turbineGroup } from "./scene/turbine.js";
+import { on, onAny, set, state } from "./state.js";
 import { opState } from "./aero/physics.js";
 import { INITIAL_CAMERA, _v1, frameView, navMode, updateGizmo } from "./nav/navigation.js";
 
-document.getElementById("turbineToggle").addEventListener("change", (e) => {
-  turbineGroup.visible = e.target.checked;
+on("turbine", (shown) => {
+  turbineGroup.visible = shown;
   syncTurbineCut();
-  if (e.target.checked) {   // frame the whole rotor
+  if (shown) {   // frame the whole rotor
     frameView(new THREE.Vector3(BLADE_LENGTH * 0.5, GROUND_Y + HUB_HEIGHT * 0.5, -200),
               new THREE.Vector3(BLADE_LENGTH * 0.5 + 250, GROUND_Y + 120, 330));
   }
 });
 
-document.getElementById("eiffelToggle").addEventListener("change", (e) => {
-  eiffelGroup.visible = e.target.checked;
-  if (e.target.checked) {
+on("eiffel", (shown) => {
+  eiffelGroup.visible = shown;
+  if (shown) {
     frameView(new THREE.Vector3(eiffelGroup.position.x, GROUND_Y + 150, -200),
               new THREE.Vector3(eiffelGroup.position.x + 250, GROUND_Y + 120, 330));
   }
@@ -53,26 +64,11 @@ window.addEventListener("resize", () => {
   renderer.setSize(window.innerWidth, window.innerHeight);
 });
 
-// --- collapsible control panel (handy on small screens) ---
-const panelCloseBtn = document.getElementById("panelClose");
-const panelToggleBtn = document.getElementById("panelToggle");
-panelCloseBtn.addEventListener("click", () => document.body.classList.add("panel-collapsed"));
-panelToggleBtn.addEventListener("click", () => document.body.classList.remove("panel-collapsed"));
-
 const aboutDialog = document.getElementById("aboutDialog");
 document.getElementById("aboutBtn").addEventListener("click", () => aboutDialog.showModal());
 document.getElementById("aboutClose").addEventListener("click", () => aboutDialog.close());
 // click on the backdrop (outside the dialog box) closes it; Esc is handled natively
 aboutDialog.addEventListener("click", (e) => { if (e.target === aboutDialog) aboutDialog.close(); });
-// remember which panel sections are open (per viewer, best effort)
-document.querySelectorAll("details.sec").forEach(d => {
-  const key = "iea22-sec:" + d.dataset.sec;
-  try { const v = localStorage.getItem(key); if (v !== null) d.open = v === "1"; } catch (e) {}
-  d.addEventListener("toggle", () => { try { localStorage.setItem(key, d.open ? "1" : "0"); } catch (e) {} });
-});
-
-// start collapsed on narrow screens so the blade is visible first
-if (window.matchMedia("(max-width: 640px)").matches) document.body.classList.add("panel-collapsed");
 
 // --- hide the loading overlay once the scene is built ---
 const overlay = document.getElementById("overlay");
@@ -81,54 +77,55 @@ const overlay = document.getElementById("overlay");
 // a moving rotor, a fading gizmo) -- an idle view costs no GPU time
 ["pointerdown", "pointermove", "pointerup", "wheel", "keydown", "input", "change", "click", "resize"]
   .forEach(ev => window.addEventListener(ev, () => invalidate(), { capture: true, passive: true }));
+onAny(() => invalidate());   // any setting change, wherever it came from
 
 const fpsEl = document.getElementById("fps");
 let lastT = performance.now(), frames = 0;
-let rotorPaused = false;
-const pauseBtns = [document.getElementById("pauseBtn"), document.getElementById("pauseBtnPanel")];
-function setPaused(p) {
-  rotorPaused = p;
-  pauseBtns[0].textContent = p ? "▶ Play" : "⏸ Pause";
-  pauseBtns[0].setAttribute("aria-pressed", String(p));
-  pauseBtns[1].textContent = p ? "▶ Resume rotor" : "⏸ Pause rotor";
-}
-pauseBtns.forEach(b => b.addEventListener("click", () => setPaused(!rotorPaused)));
+const pauseBtn = document.getElementById("pauseBtn");
+const showPaused = (p) => {
+  pauseBtn.querySelector(".dock-icon").textContent = p ? "▶" : "⏸";
+  pauseBtn.querySelector(".dock-label").textContent = p ? "Play" : "Pause";
+  pauseBtn.setAttribute("aria-pressed", String(p));
+};
+on("paused", showPaused);
+showPaused(state.paused);
+pauseBtn.addEventListener("click", () => set("paused", !state.paused));
 window.addEventListener("keydown", (e) => {
   if (e.code !== "Space" || /^(INPUT|SELECT|TEXTAREA|BUTTON)$/.test(document.activeElement.tagName)) return;
-  e.preventDefault(); setPaused(!rotorPaused);
+  e.preventDefault(); set("paused", !state.paused);
 });
 document.getElementById("resetViewBtn").addEventListener("click", () => frameView(INITIAL_TARGET, INITIAL_CAMERA));
 
 // turbine blades: same cut as the detailed blade, in each blade's own frame
 function syncTurbineCut() {
   if (!turbineGroup.visible) return;
-  const on = turbineCutToggle.checked;
+  const cutOn = state.turbineCut;
   turbineGroup.updateMatrixWorld(true);
   turbineBlades.forEach(b => {
-    if (on) b.clip.copy(clipLocal).applyMatrix4(b.mesh.matrixWorld);
+    if (cutOn) b.clip.copy(clipLocal).applyMatrix4(b.mesh.matrixWorld);
     else b.clip.set(_v1.set(-1, 0, 0), 1e9);
-    b.caps.visible = on;
-    if (on) b.caps.children.forEach(m => {
+    b.caps.visible = cutOn;
+    if (cutOn) b.caps.children.forEach(m => {
       const src = capMeshes[m.userData.ply];
       m.geometry = src.geometry;
       m.visible = src.visible && plyGroups[m.userData.ply].visible;
     });
   });
 }
-turbineCutToggle.addEventListener("change", syncTurbineCut);
+on("turbineCut", syncTurbineCut);
 let lastFrame = performance.now();
 function animate() {
   requestAnimationFrame(animate);
   const nowF = performance.now(), dt = Math.min((nowF - lastFrame) / 1000, 0.1);
   lastFrame = nowF;
-  if (!rotorPaused && turbineGroup.visible) {
+  if (!state.paused && turbineGroup.visible) {
     // leading edge first: positive about the rotor axis (clockwise seen
     // from upwind) when the LE is at +Y; real time at the slider's rpm
     const dA = leSign() * opState.rpm * 2*Math.PI / 60 * dt;
     rotorArms.forEach(a => { a.rotation.z += dA; });
   }
   const gizmoNeedsFrame = updateGizmo(dt);
-  const spinning = !rotorPaused && turbineGroup.visible;
+  const spinning = !state.paused && turbineGroup.visible;
   if (!(spinning || navMode || gizmoNeedsFrame || nowF < renderUntil)) {
     fpsEl.textContent = "idle";
     return;
@@ -147,4 +144,4 @@ function animate() {
 animate();
 
 // handle for the browser console and automated checks
-window.viewer = { scene, camera, renderer, setPaused, frameView };
+window.viewer = { scene, camera, renderer, frameView, state, set, setPaused: (p) => set("paused", p) };

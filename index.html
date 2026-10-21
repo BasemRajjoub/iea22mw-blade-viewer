@@ -19,133 +19,15 @@
   <div>Building blade geometry…</div>
 </div>
 
-<button id="panelToggle" title="Show controls" aria-label="Show controls">☰</button>
+<nav id="dock" aria-label="Windows and view">
+  <div class="dock-windows"></div>
+  <div class="dock-sep"></div>
+  <button id="pauseBtn" class="dock-btn" type="button" title="Pause / resume the rotor (Space)" aria-pressed="false"><span class="dock-icon" aria-hidden="true">⏸</span><span class="dock-label">Pause</span></button>
+  <button id="resetViewBtn" class="dock-btn" type="button" title="Reset the camera (also levels any roll)"><span class="dock-icon" aria-hidden="true">⟲</span><span class="dock-label">Reset view</span></button>
+  <button id="aboutBtn" class="dock-btn" type="button" aria-haspopup="dialog" aria-controls="aboutDialog"><span class="dock-icon" aria-hidden="true">ⓘ</span><span class="dock-label">About</span></button>
+</nav>
 
-<div id="panel">
-  <h1 style="display:flex; align-items:center; justify-content:space-between;">
-    <span>IEA 22MW RWT blade — real ply layup</span>
-    <button id="panelClose" title="Hide panel" aria-label="Hide panel"
-      style="background:none; border:none; color:#9aa3af; font-size:16px; cursor:pointer; padding:0 2px; line-height:1;">✕</button>
-  </h1>
-  <div class="sub">Real chord/twist/prebend + blended airfoils + 12 actual composite shell layers from the WindIO YAML.<br/>Left-drag orbits about the point under the cursor · right/shift-drag pans · Ctrl/Alt-drag rolls · wheel zooms to the cursor · Space pauses the rotor.</div>
-
-  <details class="sec" data-sec="layers" open>
-    <summary>Layers</summary>
-    <div class="sec-body">
-      <div id="plyList"></div>
-      <label class="row"><input id="wireToggle" type="checkbox" /> <span>Show mesh (wireframe)</span></label>
-    </div>
-  </details>
-
-  <details class="sec" data-sec="cut" open>
-    <summary>Section cut &amp; thickness</summary>
-    <div class="sec-body">
-      <div id="sliderRow">
-        <input id="cutSlider" type="range" min="0.02" max="1" step="0.001" value="1" />
-        <div id="cutLabel"><span>root</span><span id="cutValue">z = 1.00</span><span>tip</span></div>
-      </div>
-      <label class="row"><input id="turbineCutToggle" type="checkbox" checked /> <span>Apply the cut to the turbine blades too</span></label>
-      <label class="row"><input id="secToggle" type="checkbox" /> <span>2D section window (velocities &amp; forces)</span></label>
-      <div id="stackReadout" style="font-size:11px; font-family: ui-monospace, monospace; color:#c7ccd4; margin-top:8px; line-height:1.5;"></div>
-      <div id="rthickCheck" style="font-size:11px; font-family: ui-monospace, monospace; color:#9aa3af; margin-top:6px;"></div>
-      <div id="sliderRow">
-        <input id="exagSlider" type="range" min="1" max="10" step="0.5" value="1" />
-        <div id="cutLabel"><span>1x (true scale)</span><span id="exagValue">1.0x</span><span>10x</span></div>
-      </div>
-    </div>
-  </details>
-
-  <details class="sec" data-sec="geometry" open>
-    <summary>Blade geometry</summary>
-    <div class="sec-body">
-      <label class="row"><input id="geoTwist" type="checkbox" /> <span>Pre-twist</span></label>
-      <label class="row"><input id="geoPrebend" type="checkbox" /> <span>Prebend</span></label>
-      <label class="row"><input id="geoSweep" type="checkbox" /> <span>Presweep</span></label>
-      <label class="row"><input id="geoPrecone" type="checkbox" /> <span>Precone (<span id="coneLabel"></span>°, hub)</span></label>
-    </div>
-  </details>
-
-  <details class="sec" data-sec="operation" open>
-    <summary>Rotor &amp; pitch</summary>
-    <div class="sec-body">
-      <label class="row"><input id="turbineToggle" type="checkbox" /> <span>Full turbine (3 blades, hub, tower)</span></label>
-      <label class="row"><input id="rotCW" type="checkbox" checked /> <span>Clockwise seen from upwind</span></label>
-      <button id="pauseBtnPanel" class="btn" type="button">⏸ Pause rotor</button>
-      <div class="ctl">
-        <div class="ctl-head"><span>Rotor speed</span><output id="rpmValue"></output></div>
-        <input id="rpmSlider" type="range" min="0" max="9" step="0.01" value="7.06" />
-      </div>
-      <div class="ctl">
-        <div class="ctl-head"><span>Blade pitch (both views)</span><output id="pitchValue"></output></div>
-        <input id="pitchSlider" type="range" min="-5" max="90" step="0.01" value="0" />
-      </div>
-      <div id="opReadout" class="readout"></div>
-    </div>
-  </details>
-
-  <details class="sec" data-sec="wind">
-    <summary>Wind &amp; aero</summary>
-    <div class="sec-body">
-      <label class="row"><input id="windToggle" type="checkbox" /> <span>Inflow velocity triangles at leading edge</span></label>
-      <div class="legend">
-        <span><i style="background:#4fc3f7"></i>axial U(1&minus;a)</span>
-        <span><i style="background:#ffb74d"></i>rotational &Omega;r</span>
-        <span><i style="background:#ffffff"></i>relative W</span>
-      </div>
-      <label class="row"><input id="forceToggle" type="checkbox" /> <span>Aero forces at quarter chord (per metre span)</span></label>
-      <div class="legend">
-        <span><i style="background:#66bb6a"></i>lift L</span>
-        <span><i style="background:#ef5350"></i>drag D</span>
-        <span><i style="background:#e040fb"></i>resultant R</span>
-        <span><i style="background:#26c6da"></i>thrust Fn</span>
-        <span><i style="background:#ffee58"></i>driving Ft</span>
-      </div>
-      <label class="row"><input id="cutOnlyToggle" type="checkbox" /> <span>Arrows only at the cut station</span></label>
-      <label class="row"><input id="labels3dToggle" type="checkbox" /> <span>Value labels at the cut station (3D)</span></label>
-      <div class="ctl">
-        <div class="ctl-head"><span>Wind speed</span><output id="windValue"></output></div>
-        <input id="windSlider" type="range" min="3" max="25" step="0.1" value="11" />
-      </div>
-      <div class="ctl">
-        <div class="ctl-head"><span>Axial induction a</span><output id="inducValue"></output></div>
-        <input id="inducSlider" type="range" min="0" max="0.5" step="0.01" value="0.33" />
-      </div>
-      <div id="windReadout" class="readout"></div>
-    </div>
-  </details>
-
-  <details class="sec" data-sec="scale">
-    <summary>Scale comparison</summary>
-    <div class="sec-body">
-      <label class="row"><input id="carToggle" type="checkbox" /> <span>Car (4.5 m) next to blade</span></label>
-      <label class="row"><input id="humanToggle" type="checkbox" /> <span>Human (1.75 m) next to root</span></label>
-      <label class="row"><input id="fieldToggle" type="checkbox" /> <span>Soccer field (105 &times; 68 m)</span></label>
-      <label class="row"><input id="eiffelToggle" type="checkbox" /> <span>Eiffel Tower (330 m)</span></label>
-      <div id="refStatus" style="font-size:11px; color:#8891a0;"></div>
-    </div>
-  </details>
-  <div id="statLine"></div>
-</div>
 <div id="fps"></div>
-
-<div id="toolbar">
-  <button id="pauseBtn" class="btn" type="button" title="Pause / resume the rotor (Space)" aria-pressed="false">⏸ Pause</button>
-  <button id="resetViewBtn" class="btn" type="button" title="Reset the camera (also levels any roll)">⟲ Reset view</button>
-</div>
-
-<div id="secWin" hidden>
-  <header>
-    <span>Blade section at the cut</span>
-    <span style="display:flex; align-items:center; gap:10px;">
-      <label style="font-weight:400; color:#c7ccd4; display:flex; align-items:center; gap:5px; cursor:pointer;"><input id="secFlip" type="checkbox" checked /> suction side up</label>
-      <button id="secClose" title="Close" aria-label="Close">✕</button>
-    </span>
-  </header>
-  <canvas id="secCanvas"></canvas>
-  <div id="secInfo"></div>
-</div>
-
-<button id="aboutBtn" aria-haspopup="dialog" aria-controls="aboutDialog">ⓘ About</button>
 
 <dialog id="aboutDialog" aria-labelledby="aboutTitle">
   <div class="about-inner">

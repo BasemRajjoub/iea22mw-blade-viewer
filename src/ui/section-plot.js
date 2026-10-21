@@ -1,5 +1,5 @@
 import { N_S, leSign } from "../geometry/sections.js";
-import { slider } from "./layers-panel.js";
+import { state } from "../state.js";
 import { AERO_COLORS, makeStation, opState, pitchYZ, sectionAero } from "../aero/physics.js";
 import { hex } from "../aero/arrows.js";
 
@@ -7,15 +7,8 @@ import { hex } from "../aero/arrows.js";
 // toward the root, with the velocity triangle at the LE and the forces at
 // the quarter chord. Screen x = -Y (LE / blade motion to the left),
 // screen y = +Z (wind blows down the window). ---
-const secWin = document.getElementById("secWin");
-const secCanvas = document.getElementById("secCanvas");
-const secToggle = document.getElementById("secToggle");
-const secInfo = document.getElementById("secInfo");
-
-function drawSectionView() {
-  secWin.hidden = !secToggle.checked;
-  if (secWin.hidden) return;
-  const z = Math.min(Math.max(parseFloat(slider.value), 0.02), 0.995);
+function drawSection(secCanvas, secInfo) {
+  const z = Math.min(Math.max(state.cut, 0.02), 0.995);
   const st = makeStation(z), a = sectionAero(st);
 
   const dpr = Math.min(window.devicePixelRatio || 1, 2);
@@ -31,7 +24,7 @@ function drawSectionView() {
   // from the tip (LE on the right for counter-clockwise) and the optional
   // suction-side-up flip. Text is placed through M() so it never mirrors.
   const sY = leSign();
-  const hx = sY > 0 ? 1 : -1, vy = secFlip.checked ? -1 : 1;
+  const hx = sY > 0 ? 1 : -1, vy = state.suctionUp ? -1 : 1;
   const M = (x, y) => [hx > 0 ? x : W - x, vy > 0 ? y : H - y];
   const mirrored = () => ctx.setTransform(dpr*hx, 0, 0, dpr*vy, hx > 0 ? 0 : W*dpr, vy > 0 ? 0 : H*dpr);
   const plain = () => ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
@@ -148,52 +141,5 @@ function drawSectionView() {
     `Cl ${a.cl.toFixed(3)} · Cd ${a.cd.toFixed(4)} · L ${kN(a.L)} · D ${kN(a.D)} kN/m<br/>` +
     `Fn (thrust) ${kN(a.Fn)} · Ft (driving) ${kN(a.Ft)} kN/m`;
 }
-secToggle.addEventListener("change", drawSectionView);
 
-// drag the window by its title bar; resize with the corner grip (CSS
-// resize). Position and size are remembered per viewer, best effort.
-(() => {
-  const head = secWin.querySelector("header"), KEY = "iea22-secwin";
-  const clamp = () => {
-    const r = secWin.getBoundingClientRect();
-    secWin.style.left = Math.min(Math.max(r.left, 8 - r.width + 80), innerWidth - 80) + "px";
-    secWin.style.top = Math.min(Math.max(r.top, 8), innerHeight - 40) + "px";
-  };
-  const save = () => {
-    try { localStorage.setItem(KEY, JSON.stringify({ l: secWin.style.left, t: secWin.style.top, w: secWin.style.width, h: secWin.style.height })); } catch (e) {}
-  };
-  try {
-    const v = JSON.parse(localStorage.getItem(KEY) || "null");
-    if (v) Object.assign(secWin.style, { left: v.l, top: v.t, width: v.w, height: v.h });
-  } catch (e) {}
-  let drag = null;
-  head.addEventListener("pointerdown", (e) => {
-    if (e.target.closest("input, label, button")) return;
-    const r = secWin.getBoundingClientRect();
-    drag = { dx: e.clientX - r.left, dy: e.clientY - r.top };
-    head.setPointerCapture(e.pointerId);
-  });
-  head.addEventListener("pointermove", (e) => {
-    if (!drag) return;
-    secWin.style.left = (e.clientX - drag.dx) + "px";
-    secWin.style.top = (e.clientY - drag.dy) + "px";
-    clamp();
-  });
-  head.addEventListener("pointerup", () => { if (drag) { drag = null; save(); } });
-  // redraw at the new size while resizing (and remember it)
-  let lastSize = "";
-  new ResizeObserver(() => {
-    const size = secWin.offsetWidth + "x" + secWin.offsetHeight;
-    if (size === lastSize || secWin.hidden) return;
-    lastSize = size;
-    secWin.style.width = secWin.offsetWidth + "px"; secWin.style.height = secWin.offsetHeight + "px";
-    drawSectionView(); save();
-  }).observe(secWin);
-  window.addEventListener("resize", clamp);
-})();
-const secFlip = document.getElementById("secFlip");
-secFlip.addEventListener("change", drawSectionView);
-document.getElementById("secClose").addEventListener("click", () => { secToggle.checked = false; drawSectionView(); });
-window.addEventListener("resize", drawSectionView);
-
-export { drawSectionView };
+export { drawSection };

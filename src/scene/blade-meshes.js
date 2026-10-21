@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { state } from "../state.js";
 import { MATERIAL_COLORS } from "../data/index.js";
 import { BLADE_LENGTH, CHORD_MIRROR } from "../geometry/sections.js";
 import { LAYERS, buildCapGeometry, buildPlyShell } from "../geometry/plies.js";
@@ -32,7 +33,7 @@ const _noWire = new THREE.BufferGeometry();
 function setWireSource(lines, src) {
   if (lines.geometry !== _noWire) lines.geometry.dispose();
   lines.userData.src = src;
-  lines.geometry = document.getElementById("wireToggle").checked ? new THREE.WireframeGeometry(src) : _noWire;
+  lines.geometry = state.wireframe ? new THREE.WireframeGeometry(src) : _noWire;
 }
 function wireFor(src, mat) {
   const lines = new THREE.LineSegments(_noWire, mat);
