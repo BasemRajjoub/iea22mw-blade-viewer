@@ -212,11 +212,14 @@ const gizmo = (() => {
   return { g, ring, cross, mats };
 })();
 
+// returns true while the gizmo needs drawing -- including the one frame
+// in which it disappears, so the last drawn frame doesn't keep it half-faded
 function updateGizmo(dt) {
   if (navMode) gizmoHold = 0.5; else gizmoHold = Math.max(0, gizmoHold - dt);
   const alpha = navMode ? 1 : Math.min(1, gizmoHold / 0.3);
+  const wasVisible = gizmo.g.visible;
   gizmo.g.visible = alpha > 0;
-  if (!gizmo.g.visible) return;
+  if (!gizmo.g.visible) return wasVisible;
   gizmo.g.position.copy(navPivot);
   const depth = Math.max(depthOf(navPivot), camera.near);
   gizmo.g.scale.setScalar(depth * 2 * Math.tan(camera.fov * Math.PI/360) * GIZMO_PX / navEl.clientHeight);
@@ -226,6 +229,7 @@ function updateGizmo(dt) {
   gizmo.cross.visible = gizmoMode === "pan";
   gizmo.cross.quaternion.copy(camera.quaternion);
   gizmo.mats.forEach(m => { m.opacity = alpha * m.userData.base; });
+  return true;
 }
 
 export { INITIAL_CAMERA, _v1, frameView, gizmoHold, navMode, updateGizmo };

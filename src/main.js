@@ -24,7 +24,7 @@ import { capMeshes, clipLocal, plyGroups, syncClipPlane } from "./scene/blade-me
 import { GROUND_Y, eiffelGroup } from "./scene/references.js";
 import { HUB_HEIGHT, rotorArms, turbineBlades, turbineCutToggle, turbineGroup } from "./scene/turbine.js";
 import { opState } from "./aero/physics.js";
-import { INITIAL_CAMERA, _v1, frameView, gizmoHold, navMode, updateGizmo } from "./nav/navigation.js";
+import { INITIAL_CAMERA, _v1, frameView, navMode, updateGizmo } from "./nav/navigation.js";
 
 document.getElementById("turbineToggle").addEventListener("change", (e) => {
   turbineGroup.visible = e.target.checked;
@@ -127,9 +127,9 @@ function animate() {
     const dA = leSign() * opState.rpm * 2*Math.PI / 60 * dt;
     rotorArms.forEach(a => { a.rotation.z += dA; });
   }
-  updateGizmo(dt);
+  const gizmoNeedsFrame = updateGizmo(dt);
   const spinning = !rotorPaused && turbineGroup.visible;
-  if (!(spinning || navMode || gizmoHold > 0 || nowF < renderUntil)) {
+  if (!(spinning || navMode || gizmoNeedsFrame || nowF < renderUntil)) {
     fpsEl.textContent = "idle";
     return;
   }
