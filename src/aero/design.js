@@ -18,13 +18,13 @@ function betzSection(r, { R, lambda, B, cl, alphaDeg }) {
 }
 
 // also returns solidity σ and the induction factors of the Schmitz rotor
-// (drag ignored): a = 1/(1 + 4 sin²φ/(σ Cl cosφ)), a′ = 1/(4 sinφ cosφ/(σ Cl) − 1)
+// (drag ignored, so Cq = Cl sinφ): a = 1/(1 + 4 sin²φ/(σ Cl cosφ)), a′ = 1/(4 cosφ/(σ Cl) − 1)
 function schmitzSection(r, { lambda, R, B, cl, alphaDeg }) {
   const lr = lambda * r / R, phi = (2 / 3) * Math.atan(1 / lr);
   const chord = 16 * Math.PI * r / (B * cl) * Math.sin(Math.atan(1 / lr) / 3) ** 2;
   const sigma = B * chord / (2 * Math.PI * r), s = Math.sin(phi), c = Math.cos(phi);
   return { lr, phi: phi * DEG, twist: phi * DEG - alphaDeg, chord, sigma,
-    a: 1 / (1 + 4 * s * s / (sigma * cl * c)), ap: 1 / (4 * s * c / (sigma * cl) - 1) };
+    a: 1 / (1 + 4 * s * s / (sigma * cl * c)), ap: 1 / (4 * c / (sigma * cl) - 1) };
 }
 
 const designSection = (kind, r, p) => (kind === "schmitz" ? schmitzSection(r, p) : betzSection(r, p));

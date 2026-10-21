@@ -86,7 +86,7 @@ const EXERCISES = {
   },
   "5 · Schmitz theory": {
     goal: "Wake rotation (a′), the Schmitz optimum blade vs Betz vs the real blade, and a, a′ along the span.",
-    formulas: "φ = (2/3)·arctan(1/λ_r) · c = (16πr/(BC_l))·sin²(arctan(1/λ_r)/3) · σ = Bc/(2πr) · a = 1/(1 + 4sin²φ/(σC_l cosφ)) · a′ = 1/(4sinφcosφ/(σC_l) − 1)",
+    formulas: "φ = (2/3)·arctan(1/λ_r) · c = (16πr/(BC_l))·sin²(arctan(1/λ_r)/3) · σ = Bc/(2πr) · a = 1/(1 + 4sin²φ/(σC_l cosφ)) · a′ = 1/(4cosφ/(σC_l) − 1)",
     presets: {
       "Q2: Schmitz vs Betz vs IEA 22 (chord)": () => { apply({ ghostBlade: "schmitz" }); showDesign("Chord"); },
       "Q2: Schmitz vs Betz vs IEA 22 (twist)": () => { apply({ ghostBlade: "schmitz" }); showDesign("Twist"); },
